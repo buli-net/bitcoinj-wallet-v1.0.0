@@ -104,7 +104,7 @@ public class MainActivity extends AppCompatActivity
     protected LinearLayout llHistoryPages_AM;
 
     @ViewById
-    protected TextView tvRecipientAddress_AM;
+    protected EditText tvRecipientAddress_AM;
 
     @ViewById
     protected EditText etAmount_AM;
@@ -407,17 +407,17 @@ public class MainActivity extends AppCompatActivity
     @UiThread
     public void displayRecipientAddress(String recipientAddress) {
 
-        tvRecipientAddress_AM.setText(
-                TextUtils.isEmpty(recipientAddress)
-                        ? strScanRecipientQRCode
-                        : recipientAddress
-        );
-
-        tvRecipientAddress_AM.setTextColor(
-                TextUtils.isEmpty(recipientAddress)
-                        ? colorGreyDark
-                        : colorGreenDark
-        );
+        if (TextUtils.isEmpty(recipientAddress)) {
+            tvRecipientAddress_AM.setText("");
+            tvRecipientAddress_AM.setHint("Enter or paste recipient address");
+            tvRecipientAddress_AM.setTextColor(colorGreyDark);
+        } else {
+            tvRecipientAddress_AM.setText(recipientAddress);
+            tvRecipientAddress_AM.setTextColor(colorGreenDark);
+            tvRecipientAddress_AM.setSelection(
+                    tvRecipientAddress_AM.getText().length()
+            );
+        }
     }
 
     @Override
@@ -588,7 +588,9 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        tvRecipientAddress_AM.setOnClickListener(v -> {
+        // The recipient field is editable: the user can type or paste an address.
+        // QR scanning is exposed by the dedicated QR button next to the field.
+        findViewById(R.id.btnScanRecipientQR_AM).setOnClickListener(v -> {
             if (presenter != null) {
                 presenter.pickRecipient();
             }
