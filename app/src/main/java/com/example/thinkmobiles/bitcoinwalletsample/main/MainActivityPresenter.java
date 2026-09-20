@@ -39,7 +39,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class MainActivityPresenter
         implements MainActivityContract.MainActivityPresenter {
@@ -90,10 +89,6 @@ public class MainActivityPresenter
 
     private final AtomicBoolean restartInProgress =
             new AtomicBoolean(false);
-
-    /* Prevent stale asynchronous refreshes from overwriting newer wallet state. */
-    private final AtomicLong walletStateVersion =
-            new AtomicLong(0L);
 
     private volatile boolean walletReady = false;
 
@@ -1167,9 +1162,6 @@ public class MainActivityPresenter
                                 .toString();
 
 
-                final long refreshVersion =
-                        walletStateVersion.get();
-
                 final String balance =
                         w.getBalance().toFriendlyString();
 
@@ -1182,11 +1174,6 @@ public class MainActivityPresenter
                 final int currentPage = historyPage;
 
                 runOnUi(() -> {
-
-                    if (refreshVersion != walletStateVersion.get()
-                            || walletAppKit != kit) {
-                        return;
-                    }
 
                     view.displayMyBalance(
                             balance
@@ -1318,28 +1305,99 @@ public class MainActivityPresenter
                 final Coin actualFee = request.tx.getFee();
                 final Coin total = coinAmount.add(actualFee);
                 final Coin balanceAfter = w.getBalance().minus(total);
-                final int txSize = request.tx.getMessageSize();
+                final int txSize = request.tx.getVsize();
 
-                final String details =
-                        "Recipient:\n" + recipientAddress
-                                + "\n\nAmount:\n" + coinAmount.toFriendlyString()
-                                + "\n\nFee rate:\n" + feeRateSatPerVkb + " sat/vkB"
-                                + " (" + (feeRateSatPerVkb / 1000.0) + " sat/vB)"
-                                + "\n\nActual fee:\n" + actualFee.toFriendlyString()
-                                + "\n\nTransaction size:\n" + txSize + " vbytes"
-                                + "\n\nTotal:\n" + total.toFriendlyString()
-                                + "\n\nEstimated balance after:\n" + balanceAfter.toFriendlyString();
+                /*
+                 * This is the fee target for the final virtual size.
+                 * It is NOT necessarily the final fee: if bitcoinj would
+                 * create a dust change output, that change is added to the
+                 * fee instead of creating an unusable output.
+                 */
+                final Coin targetFee = Coin.valueOf(
+                        ((long) feeRateSatPerVkb * txSize + 999L) / 1000L
+                );
+
+                final long actualFeeSat = actualFee.getValue();
+                final double actualSatPerVb =
+                        txSize == 0
+                                ? 0.0
+                                : actualFeeSat / (double) txSize;
+
+                final Coin extraFee =
+                        actualFee.isGreaterThan(targetFee)
+                                ? actualFee.subtract(targetFee)
+                                : Coin.ZERO;
+
+                final boolean feeAboveTarget =
+                        actualFee.isGreaterThan(
+                                targetFee.add(Coin.SATOSHI)
+                        );
+
+                final StringBuilder detailsBuilder =
+                        new StringBuilder();
+
+                detailsBuilder
+                        .append("Recipient:\n")
+                        .append(recipientAddress)
+                        .append("\n\nAmount:\n")
+                        .append(coinAmount.toFriendlyString())
+                        .append("\n\nFee rate (requested):\n")
+                        .append(feeRateSatPerVkb)
+                        .append(" sat/vkB (")
+                        .append(String.format(Locale.US, "%.1f", feeRateSatPerVkb / 1000.0))
+                        .append(" sat/vB)")
+                        .append("\n\nTransaction size:\n")
+                        .append(txSize)
+                        .append(" vbytes")
+                        .append("\n\nFee details\n")
+                        .append("Target fee for this size: ")
+                        .append(targetFee.toFriendlyString())
+                        .append("\nActual fee: ")
+                        .append(actualFee.toFriendlyString())
+                        .append("\nActual fee rate: ")
+                        .append(String.format(Locale.US, "%.2f", actualSatPerVb))
+                        .append(" sat/vB ("
+                                + String.format(Locale.US, "%.0f", actualSatPerVb * 1000.0)
+                                + " sat/vkB)");
+
+                if (feeAboveTarget) {
+                    detailsBuilder
+                            .append("\nExtra fee above target: ")
+                            .append(extraFee.toFriendlyString())
+                            .append("\n\nNote: The selected fee rate is a target. "
+                                    + "bitcoinj can add a small change amount to the fee "
+                                    + "when the change output would be dust. This is why the "
+                                    + "actual fee can be higher than the selected rate.");
+                }
+
+                if (balanceAfter.isZero()) {
+                    detailsBuilder
+                            .append("\n\nWarning: This transaction spends the entire "
+                                    + "available balance.");
+                }
+
+                detailsBuilder
+                        .append("\n\nTotal (amount + fee):\n")
+                        .append(total.toFriendlyString())
+                        .append("\n\nEstimated balance after:\n")
+                        .append(balanceAfter.toFriendlyString());
+
+                final String details = detailsBuilder.toString();
 
                 runOnUi(() -> {
                     view.displaySendDetails(
                             feeRateSatPerVkb + " sat/vkB",
-                            actualFee.toFriendlyString(),
+                            actualFee.toFriendlyString()
+                                    + " ("
+                                    + String.format(Locale.US, "%.2f", actualSatPerVb)
+                                    + " sat/vB)",
                             total.toFriendlyString(),
                             balanceAfter.toFriendlyString()
                     );
 
                     showSendConfirmation(
                             details,
+                            feeAboveTarget,
                             () -> {
                             new Thread(() -> {
                                 Context.propagate(
@@ -1406,15 +1464,24 @@ public class MainActivityPresenter
 
     private void showSendConfirmation(
             String details,
+            boolean feeWarning,
             Runnable confirmAction) {
+
+        final String title = feeWarning
+                ? "Warning: actual fee is higher"
+                : "Confirm transaction";
+
+        final String positiveButton = feeWarning
+                ? "SEND ANYWAY"
+                : "SEND";
 
         new AlertDialog.Builder(
                 view.getActivityContext()
         )
-                .setTitle("Confirm transaction")
+                .setTitle(title)
                 .setMessage(details)
                 .setNegativeButton("CANCEL", null)
-                .setPositiveButton("SEND", (dialog, which) ->
+                .setPositiveButton(positiveButton, (dialog, which) ->
                         confirmAction.run())
                 .show();
     }
@@ -1615,36 +1682,6 @@ public class MainActivityPresenter
                     throw new IOException("Không thể cài wallet từ backup");
                 }
 
-                /*
-                 * IMPORTANT FOR RESTORE: the existing SPV chain belongs to
-                 * the wallet that was just replaced.  If we keep that
-                 * .spvchain file, WalletAppKit will continue from the old
-                 * chain state and the restored wallet may not replay the
-                 * blockchain, so its historical transactions can appear
-                 * to be missing.
-                 *
-                 * Removing the chain file intentionally makes WalletAppKit
-                 * load the restored wallet with shouldReplayWallet=true.
-                 * bitcoinj then clears/replays the wallet transactions while
-                 * downloading the blockchain, rebuilding the history from
-                 * the restored wallet's keys.
-                 *
-                 * This is the same restore pattern documented by bitcoinj: a
-                 * wallet restored/imported from existing keys must be replayed
-                 * against a freshly downloaded chain.
-                 */
-                File oldChainFile =
-                        new File(
-                                walletDir,
-                                Constants.WALLET_NAME + ".spvchain"
-                        );
-
-                if (oldChainFile.exists() && !oldChainFile.delete()) {
-                    throw new IOException(
-                            "Không thể xoá blockchain cache cũ để rebuild lịch sử"
-                    );
-                }
-
                 // The old wallet is no longer needed after successful replacement.
                 if (backupOfCurrent.exists()) {
                     backupOfCurrent.delete();
@@ -1746,9 +1783,6 @@ public class MainActivityPresenter
 
                     try {
 
-                        final long eventVersion =
-                                walletStateVersion.incrementAndGet();
-
                         Coin received =
                                 newBalance.minus(prevBalance);
 
@@ -1773,10 +1807,6 @@ public class MainActivityPresenter
                         );
 
                         runOnUi(() -> {
-
-                            if (eventVersion != walletStateVersion.get()) {
-                                return;
-                            }
 
                             view.displayMyBalance(balance);
                             view.displayMyAddress(currentAddress);
@@ -1812,9 +1842,6 @@ public class MainActivityPresenter
 
                     try {
 
-                        final long eventVersion =
-                                walletStateVersion.incrementAndGet();
-
                         String balance =
                                 newBalance.toFriendlyString();
 
@@ -1827,10 +1854,6 @@ public class MainActivityPresenter
                         int currentPage = historyPage;
 
                         runOnUi(() -> {
-
-                            if (eventVersion != walletStateVersion.get()) {
-                                return;
-                            }
 
                             view.displayMyBalance(balance);
                             view.displayTransactionHistory(history);
