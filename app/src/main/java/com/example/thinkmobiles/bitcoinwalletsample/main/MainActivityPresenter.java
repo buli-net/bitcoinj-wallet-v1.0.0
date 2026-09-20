@@ -27,7 +27,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -86,6 +90,9 @@ public class MainActivityPresenter
     private volatile int autoRestartCount = 0;
 
     private ScheduledExecutorService watchdog;
+
+    private static final int HISTORY_PAGE_SIZE = 10;
+    private volatile int transactionHistoryPage = 0;
 
 
     public MainActivityPresenter(
@@ -1777,6 +1784,188 @@ public class MainActivityPresenter
                 }
         );
     }
+
+    @Override
+    public void selectTransactionHistoryPage(int page) {
+
+        if (page < 0) {
+            page = 0;
+        }
+
+        transactionHistoryPage = page;
+        refreshTransactionHistory();
+    }
+
+
+    private void refreshTransactionHistory() {
+
+        WalletAppKit kit = walletAppKit;
+
+        if (!walletReady || kit == null) {
+            return;
+        }
+
+        new Thread(() -> {
+
+            Context.propagate(Context.getOrCreate(parameters));
+
+            try {
+
+                Wallet wallet = kit.wallet();
+                List<Transaction> transactions =
+                        wallet.getTransactionsByTime();
+
+                int total = transactions.size();
+                int pageCount =
+                        total == 0
+                                ? 0
+                                : (total + HISTORY_PAGE_SIZE - 1)
+                                        / HISTORY_PAGE_SIZE;
+
+                int page = transactionHistoryPage;
+
+                if (pageCount == 0) {
+                    page = 0;
+                } else if (page >= pageCount) {
+                    page = pageCount - 1;
+                }
+
+                transactionHistoryPage = page;
+
+                int start = page * HISTORY_PAGE_SIZE;
+                int end = Math.min(
+                        start + HISTORY_PAGE_SIZE,
+                        total
+                );
+
+                String history =
+                        buildTransactionHistoryPage(
+                                wallet,
+                                transactions,
+                                start,
+                                end
+                        );
+
+                final int uiPage = page;
+                final int uiPageCount = pageCount;
+                final String uiHistory = history;
+
+                runOnUi(() -> {
+                    view.displayTransactionHistory(uiHistory);
+                    view.displayTransactionHistoryPages(
+                            uiPage,
+                            uiPageCount
+                    );
+                });
+
+            } catch (Exception e) {
+
+                Log.w(
+                        TAG,
+                        "Transaction history refresh failed",
+                        e
+                );
+            }
+
+        }, "bitcoinj-history").start();
+    }
+
+
+    private String buildTransactionHistoryPage(
+            Wallet wallet,
+            List<Transaction> transactions,
+            int start,
+            int end) {
+
+        if (transactions.isEmpty()) {
+            return "No transactions yet.";
+        }
+
+        SimpleDateFormat dateFormat =
+                new SimpleDateFormat(
+                        "yyyy-MM-dd HH:mm:ss",
+                        Locale.getDefault()
+                );
+
+        StringBuilder builder = new StringBuilder();
+
+        for (int i = start; i < end; i++) {
+
+            Transaction tx = transactions.get(i);
+
+            Coin received =
+                    tx.getValueSentToMe(wallet);
+
+            Coin sent =
+                    tx.getValueSentFromMe(wallet);
+
+            Coin net = received.minus(sent);
+
+            String direction;
+            String amount;
+
+            if (net.isPositive()) {
+                direction = "RECEIVED";
+                amount = "+" + net.toFriendlyString();
+            } else if (net.isNegative()) {
+                direction = "SENT";
+                amount = net.toFriendlyString();
+            } else {
+                direction = "TRANSACTION";
+                amount = "0 BTC";
+            }
+
+            String time = "Unknown time";
+
+            try {
+                if (tx.updateTime().isPresent()) {
+                    time = dateFormat.format(
+                            Date.from(tx.updateTime().get())
+                    );
+                }
+            } catch (Exception ignored) {
+                // Keep history usable if a transaction has no update time.
+            }
+
+            int confirmations =
+                    tx.getConfidence().getDepthInBlocks();
+
+            String status =
+                    confirmations > 0
+                            ? "Confirmed: " + confirmations + " blocks"
+                            : "Unconfirmed";
+
+            String txId = tx.getTxId().toString();
+            String shortTxId = txId;
+
+            if (txId.length() > 16) {
+                shortTxId =
+                        txId.substring(0, 8)
+                                + "..."
+                                + txId.substring(txId.length() - 8);
+            }
+
+            int displayNumber = i + 1;
+
+            builder.append("#")
+                    .append(displayNumber)
+                    .append("  ")
+                    .append(direction)
+                    .append("  ")
+                    .append(amount)
+                    .append("\n")
+                    .append(time)
+                    .append(" | ")
+                    .append(status)
+                    .append("\n")
+                    .append("TX: ")
+                    .append(shortTxId)
+                    .append("\n\n");
+        }
+
+        return builder.toString().trim();
+    }
+
 
     private void runOnUi(
             Runnable r) {
