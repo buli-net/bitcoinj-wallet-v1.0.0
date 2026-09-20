@@ -9,9 +9,21 @@
         android:icon="@drawable/ic_camera_white_24dp"/>
 
     <item
+        android:id="@+id/menuBackupWallet_MM"
+        android:title="Backup wallet"
+        app:showAsAction="always"
+        android:icon="@drawable/ic_backup_white_24dp"/>
+
+    <item
+        android:id="@+id/menuRestoreWallet_MM"
+        android:title="Restore wallet"
+        app:showAsAction="always"
+        android:icon="@drawable/ic_restore_white_24dp"/>
+
+    <item
         android:id="@+id/menuInfo_MM"
         android:title="@string/info"
-        app:showAsAction="ifRoom"
+        app:showAsAction="always"
         android:icon="@drawable/ic_info_outline_white_24dp"/>
 
 </menu>
