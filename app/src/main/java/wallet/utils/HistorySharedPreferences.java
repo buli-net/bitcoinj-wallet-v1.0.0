@@ -1,4 +1,4 @@
-package com.example.thinkmobiles.bitcoinwalletsample.utils;
+package wallet.utils;
 
 import org.androidannotations.annotations.sharedpreferences.DefaultString;
 import org.androidannotations.annotations.sharedpreferences.SharedPref;
