@@ -103,20 +103,18 @@ public class MainActivity extends AppCompatActivity
     @ViewById
     protected LinearLayout llHistoryPages_AM;
 
+    /*
+     * XML dùng EditText nên Java cũng phải dùng EditText.
+     * Cho phép nhập tay và paste địa chỉ.
+     */
     @ViewById
-    protected TextView tvRecipientAddress_AM;
+    protected EditText tvRecipientAddress_AM;
 
     @ViewById
     protected EditText etAmount_AM;
 
     @ViewById
     protected Button btnSend_AM;
-
-    @ViewById
-    protected Button btnBackupWallet_AM;
-
-    @ViewById
-    protected Button btnRestoreWallet_AM;
 
     @ViewById
     protected SeekBar sbFee_AM;
@@ -188,6 +186,18 @@ public class MainActivity extends AppCompatActivity
         if (presenter != null) {
             presenter.pickRecipient();
         }
+    }
+
+    @OptionsItem(R.id.menuBackupWallet_MM)
+    protected void clickMenuBackupWallet() {
+        if (presenter != null) {
+            presenter.prepareWalletBackup();
+        }
+    }
+
+    @OptionsItem(R.id.menuRestoreWallet_MM)
+    protected void clickMenuRestoreWallet() {
+        startWalletRestore();
     }
 
     @OptionsItem(R.id.menuInfo_MM)
@@ -368,6 +378,7 @@ public class MainActivity extends AppCompatActivity
         for (int i = 0; i < pages.size(); i++) {
             result[i] = pages.get(i);
         }
+
         return result;
     }
 
@@ -453,7 +464,6 @@ public class MainActivity extends AppCompatActivity
                 REQUEST_CREATE_WALLET_BACKUP
         );
     }
-
 
     @Override
     public String getRecipient() {
@@ -563,7 +573,6 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
-
         IntentResult scanResult =
                 IntentIntegrator.parseActivityResult(
                         requestCode,
@@ -615,24 +624,16 @@ public class MainActivity extends AppCompatActivity
                     }
 
                     @Override
-                    public void onStartTrackingTouch(SeekBar seekBar) {
+                    public void onStartTrackingTouch(
+                            SeekBar seekBar) {
                     }
 
                     @Override
-                    public void onStopTrackingTouch(SeekBar seekBar) {
+                    public void onStopTrackingTouch(
+                            SeekBar seekBar) {
                     }
                 }
         );
-
-        btnBackupWallet_AM.setOnClickListener(v -> {
-            if (presenter != null) {
-                presenter.prepareWalletBackup();
-            }
-        });
-
-        btnRestoreWallet_AM.setOnClickListener(v -> {
-            startWalletRestore();
-        });
 
         etAmount_AM.addTextChangedListener(
                 new TextWatcher() {
@@ -830,7 +831,6 @@ public class MainActivity extends AppCompatActivity
         }, "bitcoinj-wallet-backup-copy").start();
     }
 
-
     /*
      * Chuyển wallet cũ từ cache sang storage persistent.
      *
@@ -996,5 +996,4 @@ public class MainActivity extends AppCompatActivity
     public android.content.Context getActivityContext() {
         return this;
     }
-
 }
