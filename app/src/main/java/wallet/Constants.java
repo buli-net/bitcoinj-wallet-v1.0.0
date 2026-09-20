@@ -1,4 +1,4 @@
-package com.example.thinkmobiles.bitcoinwalletsample;
+package wallet;
 
 /**
  * Created by Lynx on 4/11/2017.
