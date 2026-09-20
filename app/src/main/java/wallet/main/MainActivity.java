@@ -1,4 +1,4 @@
-package com.example.thinkmobiles.bitcoinwalletsample.main;
+package wallet.main;
 
 import android.content.ClipData;
 import android.content.ClipboardManager;
