@@ -6,7 +6,7 @@ import android.support.v7.app.AlertDialog;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.example.thinkmobiles.bitcoinwalletsample.Constants;
+import wallet.Constants;
 
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.Address;
