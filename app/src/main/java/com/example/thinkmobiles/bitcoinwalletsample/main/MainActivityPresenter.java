@@ -9,6 +9,7 @@ import com.example.thinkmobiles.bitcoinwalletsample.Constants;
 
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.Address;
+import org.bitcoinj.core.Context;
 import org.bitcoinj.core.InsufficientMoneyException;
 import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.PeerGroup;
@@ -18,7 +19,6 @@ import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.params.MainNetParams;
 import org.bitcoinj.params.TestNet3Params;
 import org.bitcoinj.utils.BriefLogFormatter;
-import org.bitcoinj.utils.Threading;
 import org.bitcoinj.wallet.SendRequest;
 import org.bitcoinj.wallet.Wallet;
 
@@ -110,8 +110,6 @@ public class MainActivityPresenter
 
         shuttingDown = false;
 
-        setBtcSDKThread();
-
         parameters =
                 Constants.IS_PRODUCTION
                         ? MainNetParams.get()
@@ -132,6 +130,8 @@ public class MainActivityPresenter
     private void startWalletKit() {
 
         new Thread(() -> {
+
+            Context.propagate(Context.getOrCreate(parameters));
 
             if (shuttingDown) {
                 return;
@@ -1120,6 +1120,8 @@ public class MainActivityPresenter
 
         new Thread(() -> {
 
+            Context.propagate(Context.getOrCreate(parameters));
+
             try {
 
                 Wallet w =
@@ -1253,6 +1255,8 @@ public class MainActivityPresenter
 
         new Thread(() -> {
 
+            Context.propagate(Context.getOrCreate(parameters));
+
             try {
 
                 Wallet w =
@@ -1361,6 +1365,8 @@ public class MainActivityPresenter
 
         new Thread(() -> {
 
+            Context.propagate(Context.getOrCreate(parameters));
+
             try {
 
                 /*
@@ -1427,6 +1433,8 @@ public class MainActivityPresenter
         }
 
         new Thread(() -> {
+
+            Context.propagate(Context.getOrCreate(parameters));
 
             File tempFile =
                     new File(
@@ -1594,6 +1602,8 @@ public class MainActivityPresenter
 
         new Thread(() -> {
 
+            Context.propagate(Context.getOrCreate(parameters));
+
             try {
 
                 String addr =
@@ -1622,18 +1632,15 @@ public class MainActivityPresenter
     }
 
 
-    private void setBtcSDKThread() {
-
-        Threading.USER_THREAD =
-                mainHandler::post;
-    }
-
-
     private void setupWalletListeners(
             Wallet wallet) {
 
         /*
          * RECEIVE
+         *
+         * IMPORTANT: do all bitcoinj Wallet/Transaction reads before
+         * switching to the Android main thread.  The main thread does
+         * not necessarily have a bitcoinj Context.
          */
         wallet.addCoinsReceivedEventListener(
                 (wallet1,
@@ -1648,57 +1655,55 @@ public class MainActivityPresenter
                                         prevBalance
                                 );
 
+                        String balance =
+                                newBalance.toFriendlyString();
 
-                        /*
-                         * After bitcoinj processes the
-                         * received transaction, ask for
-                         * the current address.
-                         *
-                         * Do NOT call freshReceiveAddress().
-                         */
                         String currentAddress =
                                 wallet1
                                         .currentReceiveAddress()
                                         .toString();
 
+                        Transaction.Purpose purpose =
+                                tx.getPurpose();
 
                         Log.d(
                                 TAG,
                                 "COINS RECEIVED: "
-                                        + received
-                                        .toFriendlyString()
+                                        + received.toFriendlyString()
                         );
-
 
                         Log.d(
                                 TAG,
-                                "Current receive address "
-                                        + "after transaction = "
+                                "Balance after receive = "
+                                        + balance
+                        );
+
+                        Log.d(
+                                TAG,
+                                "Current receive address after transaction = "
                                         + currentAddress
                         );
 
-
+                        /*
+                         * Only plain values are passed to the UI thread.
+                         */
                         runOnUi(() -> {
 
                             view.displayMyBalance(
-                                    wallet1
-                                            .getBalance()
-                                            .toFriendlyString()
+                                    balance
                             );
 
-
                             /*
-                             * Update displayed receive
-                             * address after the wallet
-                             * advances its current key.
+                             * Do NOT call freshReceiveAddress().
+                             * bitcoinj has already advanced the current
+                             * receive key when appropriate.
                              */
                             view.displayMyAddress(
                                     currentAddress
                             );
 
-
-                            if (tx.getPurpose()
-                                    == Transaction.Purpose.UNKNOWN) {
+                            if (purpose ==
+                                    Transaction.Purpose.UNKNOWN) {
 
                                 view.showToastMessage(
                                         "Receive "
@@ -1708,13 +1713,11 @@ public class MainActivityPresenter
                             }
                         });
 
-
                     } catch (Exception e) {
 
                         Log.e(
                                 TAG,
-                                "Failed to process "
-                                        + "coins received event",
+                                "Failed to process coins received event",
                                 e
                         );
                     }
@@ -1731,34 +1734,52 @@ public class MainActivityPresenter
                  prevBalance,
                  newBalance) -> {
 
-                    runOnUi(() -> {
+                    try {
 
-                        view.displayMyBalance(
-                                wallet1
-                                        .getBalance()
-                                        .toFriendlyString()
-                        );
+                        String balance =
+                                newBalance.toFriendlyString();
 
+                        Coin fee = tx.getFee();
 
-                        view.clearAmount();
-
-                        view.displayRecipientAddress(
-                                null
-                        );
-
-
-                        view.showToastMessage(
-                                "Sent "
-                                        + prevBalance
+                        Coin sent =
+                                prevBalance
                                         .minus(newBalance)
-                                        .minus(tx.getFee())
-                                        .toFriendlyString()
+                                        .minus(fee == null
+                                                ? Coin.ZERO
+                                                : fee);
+
+                        String sentAmount =
+                                sent.toFriendlyString();
+
+                        runOnUi(() -> {
+
+                            view.displayMyBalance(
+                                    balance
+                            );
+
+                            view.clearAmount();
+
+                            view.displayRecipientAddress(
+                                    null
+                            );
+
+                            view.showToastMessage(
+                                    "Sent "
+                                            + sentAmount
+                            );
+                        });
+
+                    } catch (Exception e) {
+
+                        Log.e(
+                                TAG,
+                                "Failed to process coins sent event",
+                                e
                         );
-                    });
+                    }
                 }
         );
     }
-
 
     private void runOnUi(
             Runnable r) {
