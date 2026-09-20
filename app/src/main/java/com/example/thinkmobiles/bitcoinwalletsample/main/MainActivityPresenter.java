@@ -276,7 +276,7 @@ public class MainActivityPresenter
 
                                     int percentage =
                                             (int) Math.round(
-                                                    pct * 100.0
+                                                    pct * 1.0
                                             );
 
                                     if (percentage < 0) {
