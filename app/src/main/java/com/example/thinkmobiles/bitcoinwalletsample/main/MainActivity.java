@@ -3,6 +3,7 @@ package com.example.thinkmobiles.bitcoinwalletsample.main;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
+import android.net.Uri;
 import android.graphics.Bitmap;
 import android.os.StrictMode;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -45,6 +46,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 @EActivity(R.layout.activity_main)
 @OptionsMenu(R.menu.menu_main)
@@ -52,6 +54,8 @@ public class MainActivity extends AppCompatActivity
         implements MainActivityContract.MainActivityView {
 
     private static final String TAG = "BitcoinWalletStorage";
+    private static final int REQUEST_CREATE_WALLET_BACKUP = 9001;
+    private static final int REQUEST_OPEN_WALLET_BACKUP = 9002;
 
     private MainActivityContract.MainActivityPresenter presenter;
     private boolean isUpdatingAmount = false;
@@ -91,6 +95,12 @@ public class MainActivity extends AppCompatActivity
 
     @ViewById
     protected Button btnSend_AM;
+
+    @ViewById
+    protected Button btnBackupWallet_AM;
+
+    @ViewById
+    protected Button btnRestoreWallet_AM;
 
     @ViewById
     protected ImageView ivCopy_AM;
@@ -271,6 +281,32 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    public void startWalletBackup(String suggestedFileName) {
+
+        Intent intent =
+                new Intent(Intent.ACTION_CREATE_DOCUMENT);
+
+        intent.addCategory(
+                Intent.CATEGORY_OPENABLE
+        );
+
+        intent.setType(
+                "application/octet-stream"
+        );
+
+        intent.putExtra(
+                Intent.EXTRA_TITLE,
+                suggestedFileName
+        );
+
+        startActivityForResult(
+                intent,
+                REQUEST_CREATE_WALLET_BACKUP
+        );
+    }
+
+
+    @Override
     public String getRecipient() {
         return tvRecipientAddress_AM
                 .getText()
@@ -336,6 +372,49 @@ public class MainActivity extends AppCompatActivity
                 data
         );
 
+        if (requestCode == REQUEST_CREATE_WALLET_BACKUP) {
+
+            if (resultCode == RESULT_OK
+                    && data != null
+                    && data.getData() != null) {
+
+                copyWalletBackup(
+                        data.getData()
+                );
+
+            } else if (resultCode == RESULT_CANCELED) {
+
+                Toast.makeText(
+                        this,
+                        "Backup đã huỷ",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+
+            return;
+        }
+
+        if (requestCode == REQUEST_OPEN_WALLET_BACKUP) {
+
+            if (resultCode == RESULT_OK
+                    && data != null
+                    && data.getData() != null) {
+
+                confirmWalletRestore(data.getData());
+
+            } else if (resultCode == RESULT_CANCELED) {
+
+                Toast.makeText(
+                        this,
+                        "Restore đã huỷ",
+                        Toast.LENGTH_SHORT
+                ).show();
+            }
+
+            return;
+        }
+
+
         IntentResult scanResult =
                 IntentIntegrator.parseActivityResult(
                         requestCode,
@@ -370,6 +449,16 @@ public class MainActivity extends AppCompatActivity
             if (presenter != null) {
                 presenter.send();
             }
+        });
+
+        btnBackupWallet_AM.setOnClickListener(v -> {
+            if (presenter != null) {
+                presenter.prepareWalletBackup();
+            }
+        });
+
+        btnRestoreWallet_AM.setOnClickListener(v -> {
+            startWalletRestore();
         });
 
         etAmount_AM.addTextChangedListener(
@@ -451,6 +540,123 @@ public class MainActivity extends AppCompatActivity
             ).show();
         });
     }
+
+    private void startWalletRestore() {
+
+        Intent intent =
+                new Intent(Intent.ACTION_OPEN_DOCUMENT);
+
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/octet-stream");
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false);
+
+        startActivityForResult(
+                intent,
+                REQUEST_OPEN_WALLET_BACKUP
+        );
+    }
+
+    private void confirmWalletRestore(Uri backupUri) {
+
+        new AlertDialog.Builder(this)
+                .setTitle("RESTORE WALLET")
+                .setMessage(
+                        "Restore sẽ thay thế wallet hiện tại bằng wallet trong file backup.\n\n"
+                                + "Hãy chắc chắn bạn đã chọn đúng file backup."
+                )
+                .setNegativeButton(
+                        "CANCEL",
+                        null
+                )
+                .setPositiveButton(
+                        "RESTORE",
+                        (dialog, which) -> {
+                            if (presenter != null) {
+                                presenter.restoreWallet(backupUri);
+                            }
+                        }
+                )
+                .show();
+    }
+
+    private void copyWalletBackup(Uri destinationUri) {
+
+        File source =
+                new File(
+                        getFilesDir(),
+                        Constants.WALLET_NAME + ".wallet"
+                );
+
+        if (!source.exists() || source.length() == 0) {
+
+            Toast.makeText(
+                    this,
+                    "Không tìm thấy wallet để backup",
+                    Toast.LENGTH_LONG
+            ).show();
+
+            return;
+        }
+
+        new Thread(() -> {
+
+            try (
+                    FileInputStream input =
+                            new FileInputStream(source);
+
+                    OutputStream output =
+                            getContentResolver()
+                                    .openOutputStream(destinationUri)
+            ) {
+
+                if (output == null) {
+                    throw new IOException(
+                            "Cannot open backup destination"
+                    );
+                }
+
+                byte[] buffer = new byte[8192];
+                int count;
+
+                while ((count = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, count);
+                }
+
+                output.flush();
+
+                final long size = source.length();
+
+                runOnUiThread(() ->
+                        Toast.makeText(
+                                MainActivity.this,
+                                "Backup wallet thành công ("
+                                        + size
+                                        + " bytes)",
+                                Toast.LENGTH_LONG
+                        ).show()
+                );
+
+            } catch (Exception e) {
+
+                android.util.Log.e(
+                        TAG,
+                        "Wallet backup copy failed",
+                        e
+                );
+
+                runOnUiThread(() ->
+                        Toast.makeText(
+                                MainActivity.this,
+                                "Backup wallet thất bại: "
+                                        + e.getMessage(),
+                                Toast.LENGTH_LONG
+                        ).show()
+                );
+            }
+
+        }, "bitcoinj-wallet-backup-copy").start();
+    }
+
 
     /*
      * Chuyển wallet cũ từ cache sang storage persistent.

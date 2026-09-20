@@ -26,6 +26,7 @@ public interface MainActivityContract {
 
         void startScanQR();
         void displayInfoDialog(String myAddress);
+        void startWalletBackup(String suggestedFileName);
     }
     interface MainActivityPresenter extends BasePresenter {
         void refresh();
@@ -33,6 +34,8 @@ public interface MainActivityContract {
         void send();
 
         void getInfoDialog();
+        void prepareWalletBackup();
+        void restoreWallet(android.net.Uri backupUri);
     }
     interface MainActivityModel {
 

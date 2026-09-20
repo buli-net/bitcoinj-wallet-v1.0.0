@@ -7,8 +7,8 @@ import android.util.Log;
 
 import com.example.thinkmobiles.bitcoinwalletsample.Constants;
 
-import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
+import org.bitcoinj.base.Address;
 import org.bitcoinj.core.InsufficientMoneyException;
 import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.PeerGroup;
@@ -23,6 +23,10 @@ import org.bitcoinj.wallet.SendRequest;
 import org.bitcoinj.wallet.Wallet;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.time.Instant;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -1269,16 +1273,12 @@ public class MainActivityPresenter
                 }
 
 
-                Address recipient =
-                        Address.fromString(
-                                parameters,
-                                recipientAddress
-                        );
-
-
                 SendRequest request =
                         SendRequest.to(
-                                recipient,
+                                Address.fromString(
+                                        parameters,
+                                        recipientAddress
+                                ),
                                 coinAmount
                         );
 
@@ -1339,6 +1339,242 @@ public class MainActivityPresenter
             }
 
         }, "bitcoinj-send").start();
+    }
+
+
+    @Override
+    public void prepareWalletBackup() {
+
+        WalletAppKit kit =
+                walletAppKit;
+
+        if (!walletReady || kit == null) {
+
+            runOnUi(() ->
+                    view.showToastMessage(
+                            "Wallet chưa sẵn sàng"
+                    )
+            );
+
+            return;
+        }
+
+        new Thread(() -> {
+
+            try {
+
+                /*
+                 * Force an immediate, atomic wallet save before
+                 * the user exports the file.
+                 *
+                 * WalletAppKit auto-save normally writes the wallet
+                 * every few seconds. saveToFile() guarantees that
+                 * the backup starts from a complete wallet file.
+                 */
+                kit.wallet().saveToFile(walletFile);
+
+                if (!walletFile.exists() ||
+                        walletFile.length() == 0) {
+
+                    throw new IOException(
+                            "Wallet backup source is empty"
+                    );
+                }
+
+                Log.d(
+                        TAG,
+                        "Wallet saved for backup: "
+                                + walletFile.getAbsolutePath()
+                                + " size="
+                                + walletFile.length()
+                );
+
+                runOnUi(() ->
+                        view.startWalletBackup(
+                                Constants.WALLET_NAME
+                                        + "-backup.wallet"
+                        )
+                );
+
+            } catch (Exception e) {
+
+                Log.e(
+                        TAG,
+                        "Wallet backup preparation failed",
+                        e
+                );
+
+                runOnUi(() ->
+                        view.showToastMessage(
+                                "Backup wallet thất bại: "
+                                        + safeMessage(e)
+                        )
+                );
+            }
+
+        }, "bitcoinj-wallet-backup").start();
+    }
+
+
+    @Override
+    public void restoreWallet(final android.net.Uri backupUri) {
+
+        if (backupUri == null) {
+            runOnUi(() ->
+                    view.showToastMessage("File restore không hợp lệ")
+            );
+            return;
+        }
+
+        new Thread(() -> {
+
+            File tempFile =
+                    new File(
+                            walletDir,
+                            Constants.WALLET_NAME + ".restore.tmp"
+                    );
+
+            WalletAppKit oldKit;
+
+            try {
+
+                if (shuttingDown) {
+                    throw new IOException("Wallet đang đóng");
+                }
+
+                // Copy selected backup into app-private temporary storage.
+                try (InputStream input =
+                             ((android.content.Context) view)
+                                     .getContentResolver()
+                                     .openInputStream(backupUri);
+                     FileOutputStream output =
+                             new FileOutputStream(tempFile)) {
+
+                    if (input == null) {
+                        throw new IOException("Không thể đọc file backup");
+                    }
+
+                    byte[] buffer = new byte[8192];
+                    int count;
+                    long total = 0L;
+
+                    while ((count = input.read(buffer)) != -1) {
+                        output.write(buffer, 0, count);
+                        total += count;
+
+                        if (total > 64L * 1024L * 1024L) {
+                            throw new IOException("File backup quá lớn");
+                        }
+                    }
+
+                    output.flush();
+
+                    if (total == 0L) {
+                        throw new IOException("File backup rỗng");
+                    }
+                }
+
+                // Validate the protobuf wallet and network before touching the live wallet.
+                Wallet restoredWallet = Wallet.loadFromFile(tempFile);
+
+                if (!restoredWallet.getParams().equals(parameters)) {
+                    throw new IOException(
+                            "Wallet backup khác network với ứng dụng"
+                    );
+                }
+
+                restoredWallet.isConsistentOrThrow();
+
+                stopWatchdog();
+
+                synchronized (kitLock) {
+                    oldKit = walletAppKit;
+                    walletAppKit = null;
+                    walletReady = false;
+                }
+
+                if (oldKit != null) {
+                    try {
+                        oldKit.stopAsync().awaitTerminated();
+                    } catch (Exception stopError) {
+                        synchronized (kitLock) {
+                            walletAppKit = oldKit;
+                        }
+                        walletReady = false;
+                        startWatchdog();
+                        throw new IOException(
+                                "Không thể dừng wallet hiện tại để restore",
+                                stopError
+                        );
+                    }
+                }
+
+                // Replace only after validation and shutdown.
+                File backupOfCurrent =
+                        new File(
+                                walletDir,
+                                Constants.WALLET_NAME + ".before-restore.wallet"
+                        );
+
+                if (walletFile.exists()) {
+                    if (backupOfCurrent.exists() && !backupOfCurrent.delete()) {
+                        throw new IOException("Không thể xoá bản before-restore cũ");
+                    }
+
+                    if (!walletFile.renameTo(backupOfCurrent)) {
+                        throw new IOException("Không thể giữ lại wallet hiện tại");
+                    }
+                }
+
+                if (!tempFile.renameTo(walletFile)) {
+                    // Try to recover the current wallet if replacement failed.
+                    if (!walletFile.exists() && backupOfCurrent.exists()) {
+                        backupOfCurrent.renameTo(walletFile);
+                    }
+                    throw new IOException("Không thể cài wallet từ backup");
+                }
+
+                // The old wallet is no longer needed after successful replacement.
+                if (backupOfCurrent.exists()) {
+                    backupOfCurrent.delete();
+                }
+
+                autoRestartCount = 0;
+                lastPercent = -1;
+                lastChainHeight = -1;
+                downloadFinished = false;
+                shuttingDown = false;
+
+                runOnUi(() ->
+                        view.showToastMessage(
+                                "Restore thành công. Đang khởi động lại wallet..."
+                        )
+                );
+
+                startWalletKit();
+                startWatchdog();
+
+            } catch (Exception e) {
+
+                if (tempFile.exists()) {
+                    tempFile.delete();
+                }
+
+                Log.e(
+                        TAG,
+                        "Wallet restore failed",
+                        e
+                );
+
+                runOnUi(() ->
+                        view.showToastMessage(
+                                "Restore wallet thất bại: "
+                                        + safeMessage(e)
+                        )
+                );
+            }
+
+        }, "bitcoinj-wallet-restore").start();
     }
 
 
