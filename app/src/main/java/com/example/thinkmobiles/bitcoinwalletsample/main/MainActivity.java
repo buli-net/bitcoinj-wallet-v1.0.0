@@ -104,11 +104,20 @@ public class MainActivity extends AppCompatActivity
     protected LinearLayout llHistoryPages_AM;
 
     /*
-     * XML dùng EditText nên Java cũng phải dùng EditText.
-     * Cho phép nhập tay và paste địa chỉ.
+     * Ô recipient phải là EditText để:
+     * - nhập địa chỉ bằng tay
+     * - paste bằng long-press
+     * - không tự mở QR khi chạm vào ô
      */
     @ViewById
     protected EditText tvRecipientAddress_AM;
+
+    /*
+     * Nút QR riêng của phần To.
+     * Chỉ nút này mới mở scanner.
+     */
+    @ViewById
+    protected Button btnScanRecipientQR_AM;
 
     @ViewById
     protected EditText etAmount_AM;
@@ -346,9 +355,11 @@ public class MainActivity extends AppCompatActivity
 
         if (pageCount <= HISTORY_PAGE_WINDOW) {
             int[] result = new int[pageCount];
+
             for (int i = 0; i < pageCount; i++) {
                 result[i] = i;
             }
+
             return result;
         }
 
@@ -375,6 +386,7 @@ public class MainActivity extends AppCompatActivity
         pages.add(pageCount - 1);
 
         int[] result = new int[pages.size()];
+
         for (int i = 0; i < pages.size(); i++) {
             result[i] = pages.get(i);
         }
@@ -418,17 +430,45 @@ public class MainActivity extends AppCompatActivity
     @UiThread
     public void displayRecipientAddress(String recipientAddress) {
 
+        if (TextUtils.isEmpty(recipientAddress)) {
+
+            /*
+             * Không ghi text giả vào EditText.
+             *
+             * Hint chỉ là hướng dẫn hiển thị.
+             * Người dùng vẫn có thể bấm vào ô,
+             * nhập tay hoặc long-press để paste.
+             */
+            tvRecipientAddress_AM.setText("");
+            tvRecipientAddress_AM.setHint(
+                    strScanRecipientQRCode
+            );
+
+            tvRecipientAddress_AM.setTextColor(
+                    colorGreyDark
+            );
+
+            return;
+        }
+
+        /*
+         * QR scanner hoặc presenter trả về địa chỉ thật.
+         */
         tvRecipientAddress_AM.setText(
-                TextUtils.isEmpty(recipientAddress)
-                        ? strScanRecipientQRCode
-                        : recipientAddress
+                recipientAddress
         );
 
+        tvRecipientAddress_AM.setHint(null);
+
         tvRecipientAddress_AM.setTextColor(
-                TextUtils.isEmpty(recipientAddress)
-                        ? colorGreyDark
-                        : colorGreenDark
+                colorGreenDark
         );
+
+        /*
+         * Chọn toàn bộ địa chỉ để người dùng có thể
+         * gõ/paste địa chỉ khác ngay lập tức.
+         */
+        tvRecipientAddress_AM.selectAll();
     }
 
     @Override
@@ -597,7 +637,19 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        tvRecipientAddress_AM.setOnClickListener(v -> {
+        /*
+         * Ô To KHÔNG còn mở scanner khi chạm vào.
+         *
+         * EditText được giữ nguyên hành vi Android:
+         * - tap: nhập
+         * - long press: paste/copy/select
+         */
+        tvRecipientAddress_AM.setOnClickListener(null);
+
+        /*
+         * Nút QR riêng mới là nơi mở scanner.
+         */
+        btnScanRecipientQR_AM.setOnClickListener(v -> {
             if (presenter != null) {
                 presenter.pickRecipient();
             }
@@ -615,11 +667,13 @@ public class MainActivity extends AppCompatActivity
 
         sbFee_AM.setOnSeekBarChangeListener(
                 new SeekBar.OnSeekBarChangeListener() {
+
                     @Override
                     public void onProgressChanged(
                             SeekBar seekBar,
                             int progress,
                             boolean fromUser) {
+
                         updateFeeRateLabel();
                     }
 
@@ -722,7 +776,10 @@ public class MainActivity extends AppCompatActivity
 
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("application/octet-stream");
-        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false);
+        intent.putExtra(
+                Intent.EXTRA_ALLOW_MULTIPLE,
+                false
+        );
 
         startActivityForResult(
                 intent,
@@ -745,8 +802,11 @@ public class MainActivity extends AppCompatActivity
                 .setPositiveButton(
                         "RESTORE",
                         (dialog, which) -> {
+
                             if (presenter != null) {
-                                presenter.restoreWallet(backupUri);
+                                presenter.restoreWallet(
+                                        backupUri
+                                );
                             }
                         }
                 )
@@ -758,10 +818,12 @@ public class MainActivity extends AppCompatActivity
         File source =
                 new File(
                         getFilesDir(),
-                        Constants.WALLET_NAME + ".wallet"
+                        Constants.WALLET_NAME
+                                + ".wallet"
                 );
 
-        if (!source.exists() || source.length() == 0) {
+        if (!source.exists()
+                || source.length() == 0) {
 
             Toast.makeText(
                     this,
@@ -772,63 +834,81 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
-        new Thread(() -> {
+        new Thread(
+                () -> {
 
-            try (
-                    FileInputStream input =
-                            new FileInputStream(source);
+                    try (
+                            FileInputStream input =
+                                    new FileInputStream(
+                                            source
+                                    );
 
-                    OutputStream output =
-                            getContentResolver()
-                                    .openOutputStream(destinationUri)
-            ) {
+                            OutputStream output =
+                                    getContentResolver()
+                                            .openOutputStream(
+                                                    destinationUri
+                                            )
+                    ) {
 
-                if (output == null) {
-                    throw new IOException(
-                            "Cannot open backup destination"
-                    );
-                }
+                        if (output == null) {
+                            throw new IOException(
+                                    "Cannot open backup destination"
+                            );
+                        }
 
-                byte[] buffer = new byte[8192];
-                int count;
+                        byte[] buffer =
+                                new byte[8192];
 
-                while ((count = input.read(buffer)) != -1) {
-                    output.write(buffer, 0, count);
-                }
+                        int count;
 
-                output.flush();
+                        while ((count =
+                                input.read(buffer)) != -1) {
 
-                final long size = source.length();
+                            output.write(
+                                    buffer,
+                                    0,
+                                    count
+                            );
+                        }
 
-                runOnUiThread(() ->
-                        Toast.makeText(
-                                MainActivity.this,
-                                "Backup wallet thành công ("
-                                        + size
-                                        + " bytes)",
-                                Toast.LENGTH_LONG
-                        ).show()
-                );
+                        output.flush();
 
-            } catch (Exception e) {
+                        final long size =
+                                source.length();
 
-                android.util.Log.e(
-                        TAG,
-                        "Wallet backup copy failed",
-                        e
-                );
+                        runOnUiThread(
+                                () ->
+                                        Toast.makeText(
+                                                MainActivity.this,
+                                                "Backup wallet thành công ("
+                                                        + size
+                                                        + " bytes)",
+                                                Toast.LENGTH_LONG
+                                        ).show()
+                        );
 
-                runOnUiThread(() ->
-                        Toast.makeText(
-                                MainActivity.this,
-                                "Backup wallet thất bại: "
-                                        + e.getMessage(),
-                                Toast.LENGTH_LONG
-                        ).show()
-                );
-            }
+                    } catch (Exception e) {
 
-        }, "bitcoinj-wallet-backup-copy").start();
+                        android.util.Log.e(
+                                TAG,
+                                "Wallet backup copy failed",
+                                e
+                        );
+
+                        runOnUiThread(
+                                () ->
+                                        Toast.makeText(
+                                                MainActivity.this,
+                                                "Backup wallet thất bại: "
+                                                        + e.getMessage(),
+                                                Toast.LENGTH_LONG
+                                        ).show()
+                        );
+                    }
+
+                },
+                "bitcoinj-wallet-backup-copy"
+        ).start();
     }
 
     /*
@@ -845,22 +925,26 @@ public class MainActivity extends AppCompatActivity
         migrateFile(
                 new File(
                         oldDir,
-                        Constants.WALLET_NAME + ".wallet"
+                        Constants.WALLET_NAME
+                                + ".wallet"
                 ),
                 new File(
                         newDir,
-                        Constants.WALLET_NAME + ".wallet"
+                        Constants.WALLET_NAME
+                                + ".wallet"
                 )
         );
 
         migrateFile(
                 new File(
                         oldDir,
-                        Constants.WALLET_NAME + ".spvchain"
+                        Constants.WALLET_NAME
+                                + ".spvchain"
                 ),
                 new File(
                         newDir,
-                        Constants.WALLET_NAME + ".spvchain"
+                        Constants.WALLET_NAME
+                                + ".spvchain"
                 )
         );
     }
@@ -881,11 +965,14 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
-        File parent = destination.getParentFile();
+        File parent =
+                destination.getParentFile();
 
-        if (parent != null && !parent.exists()) {
+        if (parent != null
+                && !parent.exists()) {
 
-            if (!parent.mkdirs() && !parent.exists()) {
+            if (!parent.mkdirs()
+                    && !parent.exists()) {
 
                 android.util.Log.e(
                         TAG,
@@ -905,12 +992,19 @@ public class MainActivity extends AppCompatActivity
                         new FileOutputStream(destination)
         ) {
 
-            byte[] buffer = new byte[8192];
+            byte[] buffer =
+                    new byte[8192];
 
             int count;
 
-            while ((count = input.read(buffer)) != -1) {
-                output.write(buffer, 0, count);
+            while ((count =
+                    input.read(buffer)) != -1) {
+
+                output.write(
+                        buffer,
+                        0,
+                        count
+                );
             }
 
             output.flush();
@@ -949,20 +1043,29 @@ public class MainActivity extends AppCompatActivity
     }
 
     private int getSelectedFeeRateSatPerVkb() {
-        return 1000 + (sbFee_AM.getProgress() * 100);
+        return 1000
+                + (sbFee_AM.getProgress() * 100);
     }
 
     private void updateFeeRateLabel() {
-        if (tvFeeRate_AM == null || sbFee_AM == null) {
+
+        if (tvFeeRate_AM == null
+                || sbFee_AM == null) {
             return;
         }
 
-        int satPerVkb = getSelectedFeeRateSatPerVkb();
-        double satPerVb = satPerVkb / 1000.0;
+        int satPerVkb =
+                getSelectedFeeRateSatPerVkb();
+
+        double satPerVb =
+                satPerVkb / 1000.0;
 
         tvFeeRate_AM.setText(
-                "Fee rate: " + satPerVkb + " sat/vkB ("
-                        + satPerVb + " sat/vB)"
+                "Fee rate: "
+                        + satPerVkb
+                        + " sat/vkB ("
+                        + satPerVb
+                        + " sat/vB)"
         );
     }
 
@@ -983,10 +1086,14 @@ public class MainActivity extends AppCompatActivity
         }
 
         tvFeeDetails_AM.setText(
-                "Selected fee rate: " + feeRate
-                        + "\nActual fee: " + fee
-                        + "\nTotal: " + total
-                        + "\nRemaining: " + remaining
+                "Selected fee rate: "
+                        + feeRate
+                        + "\nActual fee: "
+                        + fee
+                        + "\nTotal: "
+                        + total
+                        + "\nRemaining: "
+                        + remaining
                         + "\n\nThe selected fee rate is a target. "
                         + "The final fee may be higher if bitcoinj adds a dust change amount to the fee."
         );
