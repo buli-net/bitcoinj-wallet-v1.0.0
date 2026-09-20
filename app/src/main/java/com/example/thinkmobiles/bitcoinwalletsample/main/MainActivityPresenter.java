@@ -33,31 +33,24 @@ public class MainActivityPresenter
 
     private static final String TAG = "BitcoinWallet";
 
-    /*
-     * P2P settings.
-     */
-    private static final int MAX_CONNECTIONS = 18;
+    private static final int MAX_CONNECTIONS = 8;
 
-    /*
-     * Nếu sync không có tiến triển trong khoảng thời gian này,
-     * watchdog sẽ kiểm tra lại.
-     */
     private static final long STALL_TIMEOUT_MS = 90_000L;
 
-    /*
-     * Không restart vô hạn.
-     */
-    private static final int MAX_AUTO_RESTARTS = 18;
+    private static final int MAX_AUTO_RESTARTS = 8;
 
     private MainActivityContract.MainActivityView view;
 
     private final File walletDir;
+
     private final File walletFile;
 
     private NetworkParameters parameters;
 
     private volatile WalletAppKit walletAppKit;
+
     private volatile boolean walletReady = false;
+
     private volatile boolean stopping = false;
 
     private final Handler mainHandler =
@@ -80,6 +73,7 @@ public class MainActivityPresenter
             File walletDir) {
 
         this.view = view;
+
         this.walletDir = walletDir;
 
         this.walletFile =
@@ -95,6 +89,7 @@ public class MainActivityPresenter
     public void subscribe() {
 
         stopping = false;
+
         walletReady = false;
 
         setBtcSDKThread();
@@ -162,18 +157,13 @@ public class MainActivityPresenter
                             Wallet wallet = wallet();
 
                             /*
-                             * KHÔNG import ECKey ngẫu nhiên ở đây.
+                             * WalletAppKit chịu trách nhiệm tự động
+                             * lưu wallet khi wallet thay đổi.
                              *
-                             * Wallet deterministic đã có keychain riêng.
-                             * Import ECKey mới có thể tạo thêm một key
-                             * không cần thiết.
+                             * Không gọi wallet.setAutoSave(...)
+                             * vì setAutoSave thuộc WalletAppKit.
                              */
-
-                            wallet.setAutoSave(
-                                    true,
-                                    10,
-                                    TimeUnit.SECONDS
-                            );
+                            walletAppKit.setAutoSave(true);
 
                             setupWalletListeners(wallet);
 
@@ -186,12 +176,10 @@ public class MainActivityPresenter
                             );
 
                             /*
-                             * QUAN TRỌNG:
+                             * KHÔNG dùng freshReceiveAddress().
                              *
-                             * Không dùng freshReceiveAddress().
-                             *
-                             * currentReceiveAddress() giữ nguyên địa chỉ
-                             * hiện tại nếu địa chỉ đó chưa được sử dụng.
+                             * currentReceiveAddress() lấy địa chỉ
+                             * receive hiện tại của wallet.
                              */
                             Log.d(
                                     TAG,
@@ -259,6 +247,8 @@ public class MainActivityPresenter
                             lastProgressTime =
                                     System.currentTimeMillis();
 
+                            lastProgressPercent = 100;
+
                             Log.d(
                                     TAG,
                                     "Blockchain download completed"
@@ -278,9 +268,6 @@ public class MainActivityPresenter
 
             walletAppKit.setBlockingStartup(false);
 
-            /*
-             * WalletAppKit sẽ tự quản lý PeerGroup.
-             */
             walletAppKit.startAsync().awaitRunning();
 
             Log.d(
@@ -333,6 +320,7 @@ public class MainActivityPresenter
     public void unsubscribe() {
 
         stopping = true;
+
         walletReady = false;
 
         stopWatchdog();
@@ -390,13 +378,16 @@ public class MainActivityPresenter
                                 walletAppKit.wallet();
 
                         /*
-                         * KHÔNG BAO GIỜ dùng freshReceiveAddress()
-                         * trong refresh().
+                         * QUAN TRỌNG:
                          *
-                         * freshReceiveAddress() yêu cầu wallet tạo
-                         * receive address mới.
+                         * Không dùng:
                          *
-                         * currentReceiveAddress() lấy địa chỉ hiện tại.
+                         * freshReceiveAddress()
+                         *
+                         * vì method đó tạo/yêu cầu address mới.
+                         *
+                         * currentReceiveAddress() giữ address
+                         * hiện tại của wallet.
                          */
                         String myAddress =
                                 wallet.currentReceiveAddress()
@@ -446,6 +437,7 @@ public class MainActivityPresenter
     public void pickRecipient() {
 
         view.displayRecipientAddress(null);
+
         view.startScanQR();
     }
 
@@ -645,20 +637,16 @@ public class MainActivityPresenter
         ).start();
     }
 
-    /*
-     * ============================================================
-     * WALLET EVENTS
-     * ============================================================
-     */
-
     private void setupWalletListeners(
             Wallet wallet) {
 
         wallet.addCoinsReceivedEventListener(
-                (wallet1,
-                 tx,
-                 prevBalance,
-                 newBalance) -> {
+                (
+                        wallet1,
+                        tx,
+                        prevBalance,
+                        newBalance
+                ) -> {
 
                     try {
 
@@ -668,30 +656,22 @@ public class MainActivityPresenter
                                 );
 
                         /*
-                         * Sau khi transaction nhận coin được wallet
-                         * xử lý, hỏi lại currentReceiveAddress().
-                         *
                          * Không gọi freshReceiveAddress().
                          *
-                         * Nếu địa chỉ hiện tại chưa được sử dụng,
-                         * nó vẫn giữ nguyên.
-                         *
-                         * Nếu wallet đã advance keychain sau khi
-                         * nhận coin, currentReceiveAddress() sẽ trả
-                         * về địa chỉ kế tiếp.
+                         * Sau khi transaction được wallet xử lý,
+                         * lấy currentReceiveAddress() để biết address
+                         * receive hiện tại của wallet.
                          */
                         String currentAddress =
                                 wallet1
                                         .currentReceiveAddress()
                                         .toString();
 
-                        wallet1.saveNow();
-
                         Log.d(
                                 TAG,
                                 "COINS RECEIVED: "
                                         + received
-                                                .toFriendlyString()
+                                        .toFriendlyString()
                         );
 
                         Log.d(
@@ -700,6 +680,15 @@ public class MainActivityPresenter
                                         + "transaction = "
                                         + currentAddress
                         );
+
+                        /*
+                         * Không gọi wallet1.saveNow().
+                         *
+                         * Method này protected trong bitcoinj 0.17.1.
+                         *
+                         * WalletAppKit.setAutoSave(true) ở trên đã
+                         * đảm nhiệm việc tự lưu wallet.
+                         */
 
                         runOnUi(
                                 () -> {
@@ -737,16 +726,18 @@ public class MainActivityPresenter
         );
 
         wallet.addCoinsSentEventListener(
-                (wallet1,
-                 tx,
-                 prevBalance,
-                 newBalance) -> {
+                (
+                        wallet12,
+                        tx,
+                        prevBalance,
+                        newBalance
+                ) -> {
 
                     runOnUi(
                             () -> {
 
                                 view.displayMyBalance(
-                                        wallet1.getBalance()
+                                        wallet12.getBalance()
                                                 .toFriendlyString()
                                 );
 
@@ -768,12 +759,6 @@ public class MainActivityPresenter
                 }
         );
     }
-
-    /*
-     * ============================================================
-     * WATCHDOG
-     * ============================================================
-     */
 
     private void startWatchdog() {
 
@@ -848,7 +833,7 @@ public class MainActivityPresenter
                     lastProgressPercent;
 
             /*
-             * Nếu đã hoàn tất sync thì không coi là stall.
+             * Đã sync xong.
              */
             if (percent >= 100) {
                 return;
@@ -973,13 +958,11 @@ public class MainActivityPresenter
         walletAppKit = null;
 
         /*
-         * TUYỆT ĐỐI không xoá:
+         * KHÔNG xoá wallet.wallet.
          *
-         * wallet.wallet
-         * wallet.spvchain
+         * KHÔNG xoá wallet.spvchain.
          *
-         * Blockchain state được giữ lại để lần chạy sau
-         * tiếp tục sync thay vì tải lại từ đầu.
+         * Restart phải tiếp tục từ state hiện tại.
          */
         lastProgressTime =
                 System.currentTimeMillis();
@@ -995,7 +978,8 @@ public class MainActivityPresenter
                 mainHandler::post;
     }
 
-    private void runOnUi(Runnable runnable) {
+    private void runOnUi(
+            Runnable runnable) {
 
         if (Looper.myLooper()
                 == Looper.getMainLooper()) {
