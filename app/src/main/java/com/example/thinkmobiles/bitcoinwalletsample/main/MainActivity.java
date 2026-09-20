@@ -23,6 +23,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.thinkmobiles.bitcoinwalletsample.Constants;
 import com.example.thinkmobiles.bitcoinwalletsample.R;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
@@ -40,38 +41,57 @@ import org.androidannotations.annotations.ViewById;
 import org.androidannotations.annotations.res.ColorRes;
 import org.androidannotations.annotations.res.StringRes;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
 @EActivity(R.layout.activity_main)
 @OptionsMenu(R.menu.menu_main)
-public class MainActivity extends AppCompatActivity implements MainActivityContract.MainActivityView {
+public class MainActivity extends AppCompatActivity
+        implements MainActivityContract.MainActivityView {
+
+    private static final String TAG = "BitcoinWalletStorage";
 
     private MainActivityContract.MainActivityPresenter presenter;
     private boolean isUpdatingAmount = false;
 
     @ViewById
     protected FrameLayout flDownloadContent_LDP;
+
     @ViewById
     protected ProgressBar pbProgress_LDP;
+
     @ViewById
     protected TextView tvPercentage_LDP;
 
     @ViewById
     protected Toolbar toolbar_AT;
+
     @ViewById
     protected SwipeRefreshLayout srlContent_AM;
+
     @ViewById
     protected TextView tvMyBalance_AM;
+
     @ViewById
     protected TextView tvMyAddress_AM;
+
     @ViewById
     protected ImageView ivMyQRAddress_AM;
+
     @ViewById
     protected TextView tvWalletFilePath_AM;
+
     @ViewById
     protected TextView tvRecipientAddress_AM;
+
     @ViewById
     protected EditText etAmount_AM;
+
     @ViewById
     protected Button btnSend_AM;
+
     @ViewById
     protected ImageView ivCopy_AM;
 
@@ -80,24 +100,42 @@ public class MainActivity extends AppCompatActivity implements MainActivityContr
 
     @StringRes(R.string.scan_recipient_qr)
     protected String strScanRecipientQRCode;
+
     @StringRes(R.string.about)
     protected String strAbout;
 
     @ColorRes(android.R.color.holo_green_dark)
     protected int colorGreenDark;
+
     @ColorRes(android.R.color.darker_gray)
     protected int colorGreyDark;
 
     @AfterInject
     protected void initData() {
-        // Fix 1: Bảo vệ không crash mạng trên main thread
-        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder()
-                .permitAll()
-                .build();
+
+        StrictMode.ThreadPolicy policy =
+                new StrictMode.ThreadPolicy.Builder()
+                        .permitAll()
+                        .build();
+
         StrictMode.setThreadPolicy(policy);
 
-        // Fix 2: GÁN PRESENTER VÀO BIẾN — KHÔNG CÒN NULL NỮA
-        presenter = new MainActivityPresenter(this, getCacheDir());
+        /*
+         * Wallet KHÔNG được lưu trong cache.
+         *
+         * getCacheDir() có thể bị Android xoá khi hệ thống cần giải phóng
+         * dung lượng. Wallet và blockchain state phải nằm trong storage
+         * persistent của app.
+         */
+        File walletDir = getFilesDir();
+
+        /*
+         * Nếu bản cũ từng lưu wallet trong cache, chuyển nó sang storage
+         * persistent trước khi WalletAppKit được khởi động.
+         */
+        migrateWalletFromCache();
+
+        presenter = new MainActivityPresenter(this, walletDir);
     }
 
     @AfterViews
@@ -105,7 +143,6 @@ public class MainActivity extends AppCompatActivity implements MainActivityContr
         initToolbar();
         setListeners();
 
-        // Fix 3: Kiểm tra null trước khi gọi
         if (presenter != null) {
             presenter.subscribe();
         }
@@ -113,43 +150,54 @@ public class MainActivity extends AppCompatActivity implements MainActivityContr
 
     @OptionsItem(R.id.menuScanQR_MM)
     protected void clickMenuGetRecipientQR() {
-        if (presenter != null) presenter.pickRecipient();
+        if (presenter != null) {
+            presenter.pickRecipient();
+        }
     }
 
     @OptionsItem(R.id.menuInfo_MM)
     protected void clickMenuInfo() {
-        if (presenter != null) presenter.getInfoDialog();
+        if (presenter != null) {
+            presenter.getInfoDialog();
+        }
     }
 
     private void initToolbar() {
         setSupportActionBar(toolbar_AT);
+
         if (getSupportActionBar() != null) {
             getSupportActionBar().setTitle("Wallet");
         }
     }
 
     @Override
-    public void setPresenter(MainActivityContract.MainActivityPresenter presenter) {
+    public void setPresenter(
+            MainActivityContract.MainActivityPresenter presenter) {
         this.presenter = presenter;
     }
 
     @Override
     @UiThread
     public void displayDownloadContent(boolean isShown) {
-        flDownloadContent_LDP.setVisibility(isShown ? View.VISIBLE : View.GONE);
+        flDownloadContent_LDP.setVisibility(
+                isShown ? View.VISIBLE : View.GONE
+        );
     }
 
     @Override
     @UiThread
     public void displayProgress(int percent) {
-        if (pbProgress_LDP.isIndeterminate()) pbProgress_LDP.setIndeterminate(false);
+        if (pbProgress_LDP.isIndeterminate()) {
+            pbProgress_LDP.setIndeterminate(false);
+        }
+
         pbProgress_LDP.setProgress(percent);
     }
 
     @Override
     @UiThread
     public void displayPercentage(int percent) {
-        tvPercentage_LDP.setText(String.valueOf(percent) + " %");
+        tvPercentage_LDP.setText(percent + " %");
     }
 
     @Override
@@ -167,46 +215,75 @@ public class MainActivity extends AppCompatActivity implements MainActivityContr
     @Override
     @UiThread
     public void displayMyAddress(String myAddress) {
-        if (TextUtils.isEmpty(myAddress)) return;
+
+        if (TextUtils.isEmpty(myAddress)) {
+            return;
+        }
+
         tvMyAddress_AM.setText(myAddress);
 
-        // Fix 4: Tạo QR trên luồng phụ — không treo app
+        /*
+         * QR generation chạy background để không block UI.
+         */
         new Thread(() -> {
             try {
-                final Bitmap bitmapMyQR = QRCode.from(myAddress).bitmap();
-                runOnUiThread(() -> ivMyQRAddress_AM.setImageBitmap(bitmapMyQR));
+                final Bitmap bitmapMyQR =
+                        QRCode.from(myAddress).bitmap();
+
+                runOnUiThread(() ->
+                        ivMyQRAddress_AM.setImageBitmap(bitmapMyQR)
+                );
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }).start();
 
-        if (srlContent_AM.isRefreshing()) srlContent_AM.setRefreshing(false);
+        if (srlContent_AM.isRefreshing()) {
+            srlContent_AM.setRefreshing(false);
+        }
     }
 
     @Override
     @UiThread
     public void displayRecipientAddress(String recipientAddress) {
+
         tvRecipientAddress_AM.setText(
-                TextUtils.isEmpty(recipientAddress) ? strScanRecipientQRCode : recipientAddress
+                TextUtils.isEmpty(recipientAddress)
+                        ? strScanRecipientQRCode
+                        : recipientAddress
         );
+
         tvRecipientAddress_AM.setTextColor(
-                TextUtils.isEmpty(recipientAddress) ? colorGreyDark : colorGreenDark
+                TextUtils.isEmpty(recipientAddress)
+                        ? colorGreyDark
+                        : colorGreenDark
         );
     }
 
     @Override
     public void showToastMessage(String message) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        Toast.makeText(
+                this,
+                message,
+                Toast.LENGTH_SHORT
+        ).show();
     }
 
     @Override
     public String getRecipient() {
-        return tvRecipientAddress_AM.getText().toString().trim();
+        return tvRecipientAddress_AM
+                .getText()
+                .toString()
+                .trim();
     }
 
     @Override
     public String getAmount() {
-        return etAmount_AM.getText().toString().trim();
+        return etAmount_AM
+                .getText()
+                .toString()
+                .trim();
     }
 
     @Override
@@ -221,79 +298,272 @@ public class MainActivity extends AppCompatActivity implements MainActivityContr
 
     @Override
     public void displayInfoDialog(String myAddress) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        AlertDialog.Builder builder =
+                new AlertDialog.Builder(this);
+
         builder.setTitle("About");
         builder.setMessage(Html.fromHtml(strAbout));
         builder.setCancelable(true);
-        builder.setPositiveButton("GOT IT", (dialog, which) -> dialog.dismiss());
+
+        builder.setPositiveButton(
+                "GOT IT",
+                (dialog, which) -> dialog.dismiss()
+        );
+
         AlertDialog alertDialog = builder.create();
         alertDialog.show();
-        TextView msgTxt = (TextView) alertDialog.findViewById(android.R.id.message);
+
+        TextView msgTxt =
+                alertDialog.findViewById(android.R.id.message);
+
         if (msgTxt != null) {
-            msgTxt.setMovementMethod(LinkMovementMethod.getInstance());
+            msgTxt.setMovementMethod(
+                    LinkMovementMethod.getInstance()
+            );
         }
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        IntentResult scanResult = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
-        if (scanResult != null && !TextUtils.isEmpty(scanResult.getContents())) {
-            displayRecipientAddress(scanResult.getContents());
+    protected void onActivityResult(
+            int requestCode,
+            int resultCode,
+            Intent data) {
+
+        super.onActivityResult(
+                requestCode,
+                resultCode,
+                data
+        );
+
+        IntentResult scanResult =
+                IntentIntegrator.parseActivityResult(
+                        requestCode,
+                        resultCode,
+                        data
+                );
+
+        if (scanResult != null
+                && !TextUtils.isEmpty(scanResult.getContents())) {
+
+            displayRecipientAddress(
+                    scanResult.getContents()
+            );
         }
     }
 
     private void setListeners() {
+
         srlContent_AM.setOnRefreshListener(() -> {
-            if (presenter != null) presenter.refresh();
+            if (presenter != null) {
+                presenter.refresh();
+            }
         });
 
         tvRecipientAddress_AM.setOnClickListener(v -> {
-            if (presenter != null) presenter.pickRecipient();
+            if (presenter != null) {
+                presenter.pickRecipient();
+            }
         });
 
         btnSend_AM.setOnClickListener(v -> {
-            if (presenter != null) presenter.send();
-        });
-
-        // Fix 5: Tránh vòng lặp vô hạn TextWatcher
-        etAmount_AM.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {}
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                if (isUpdatingAmount) return;
-                isUpdatingAmount = true;
-
-                if (s.toString().trim().length() == 0) {
-                    etAmount_AM.setText("0.00");
-                    etAmount_AM.setSelection(etAmount_AM.getText().length());
-                }
-
-                isUpdatingAmount = false;
+            if (presenter != null) {
+                presenter.send();
             }
         });
+
+        etAmount_AM.addTextChangedListener(
+                new TextWatcher() {
+
+                    @Override
+                    public void beforeTextChanged(
+                            CharSequence s,
+                            int start,
+                            int count,
+                            int after) {
+                    }
+
+                    @Override
+                    public void onTextChanged(
+                            CharSequence s,
+                            int start,
+                            int before,
+                            int count) {
+                    }
+
+                    @Override
+                    public void afterTextChanged(
+                            Editable s) {
+
+                        if (isUpdatingAmount) {
+                            return;
+                        }
+
+                        isUpdatingAmount = true;
+
+                        if (s.toString().trim().length() == 0) {
+
+                            etAmount_AM.setText("0.00");
+
+                            etAmount_AM.setSelection(
+                                    etAmount_AM
+                                            .getText()
+                                            .length()
+                            );
+                        }
+
+                        isUpdatingAmount = false;
+                    }
+                }
+        );
 
         ivCopy_AM.setOnClickListener(v -> {
-            String address = tvMyAddress_AM.getText().toString().trim();
+
+            String address =
+                    tvMyAddress_AM
+                            .getText()
+                            .toString()
+                            .trim();
+
             if (TextUtils.isEmpty(address)) {
-                Toast.makeText(MainActivity.this, "Chưa có địa chỉ ví", Toast.LENGTH_SHORT).show();
+
+                Toast.makeText(
+                        MainActivity.this,
+                        "Chưa có địa chỉ ví",
+                        Toast.LENGTH_SHORT
+                ).show();
+
                 return;
             }
-            ClipData clip = ClipData.newPlainText("My wallet address", address);
+
+            ClipData clip =
+                    ClipData.newPlainText(
+                            "My wallet address",
+                            address
+                    );
+
             clipboardManager.setPrimaryClip(clip);
-            Toast.makeText(MainActivity.this, "Copied", Toast.LENGTH_SHORT).show();
+
+            Toast.makeText(
+                    MainActivity.this,
+                    "Copied",
+                    Toast.LENGTH_SHORT
+            ).show();
         });
     }
 
-    // Fix 6: Dừng wallet khi đóng app — không rò rỉ
+    /*
+     * Chuyển wallet cũ từ cache sang storage persistent.
+     *
+     * Không xoá bản cache ngay sau khi copy.
+     * Mục đích là tránh mất wallet nếu migration có vấn đề.
+     */
+    private void migrateWalletFromCache() {
+
+        File oldDir = getCacheDir();
+        File newDir = getFilesDir();
+
+        migrateFile(
+                new File(
+                        oldDir,
+                        Constants.WALLET_NAME + ".wallet"
+                ),
+                new File(
+                        newDir,
+                        Constants.WALLET_NAME + ".wallet"
+                )
+        );
+
+        migrateFile(
+                new File(
+                        oldDir,
+                        Constants.WALLET_NAME + ".spvchain"
+                ),
+                new File(
+                        newDir,
+                        Constants.WALLET_NAME + ".spvchain"
+                )
+        );
+    }
+
+    private void migrateFile(
+            File source,
+            File destination) {
+
+        if (!source.exists()) {
+            return;
+        }
+
+        /*
+         * Nếu destination đã tồn tại thì không ghi đè.
+         * Persistent wallet được ưu tiên.
+         */
+        if (destination.exists()) {
+            return;
+        }
+
+        File parent = destination.getParentFile();
+
+        if (parent != null && !parent.exists()) {
+
+            if (!parent.mkdirs() && !parent.exists()) {
+
+                android.util.Log.e(
+                        TAG,
+                        "Cannot create wallet directory: "
+                                + parent.getAbsolutePath()
+                );
+
+                return;
+            }
+        }
+
+        try (
+                FileInputStream input =
+                        new FileInputStream(source);
+
+                FileOutputStream output =
+                        new FileOutputStream(destination)
+        ) {
+
+            byte[] buffer = new byte[8192];
+
+            int count;
+
+            while ((count = input.read(buffer)) != -1) {
+                output.write(buffer, 0, count);
+            }
+
+            output.flush();
+
+            android.util.Log.d(
+                    TAG,
+                    "Migrated: "
+                            + source.getAbsolutePath()
+                            + " -> "
+                            + destination.getAbsolutePath()
+            );
+
+        } catch (IOException e) {
+
+            android.util.Log.e(
+                    TAG,
+                    "Wallet migration failed: "
+                            + source.getAbsolutePath(),
+                    e
+            );
+
+            if (destination.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                destination.delete();
+            }
+        }
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
         if (presenter != null) {
             presenter.unsubscribe();
         }
