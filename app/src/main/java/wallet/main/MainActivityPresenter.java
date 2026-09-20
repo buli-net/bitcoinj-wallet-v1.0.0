@@ -1,4 +1,4 @@
-package com.example.thinkmobiles.bitcoinwalletsample.main;
+package wallet.main;
 
 import android.os.Handler;
 import android.os.Looper;
