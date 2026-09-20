@@ -11,6 +11,7 @@ import org.bitcoinj.base.Coin;
 import org.bitcoinj.base.LegacyAddress;
 import org.bitcoinj.core.InsufficientMoneyException;
 import org.bitcoinj.core.NetworkParameters;
+import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.core.Transaction;
 import org.bitcoinj.core.listeners.DownloadProgressTracker;
 import org.bitcoinj.kits.WalletAppKit;
@@ -31,49 +32,57 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MainActivityPresenter
         implements MainActivityContract.MainActivityPresenter {
 
-    private static final String TAG = "BitcoinWallet";
+    private static final String TAG = "BitcoinWalletSync";
 
     /*
-     * P2P settings.
+     * Maximum number of connected peers.
      */
     private static final int MAX_CONNECTIONS = 8;
 
     /*
-     * Nếu sync không có tiến triển trong khoảng thời gian này,
-     * watchdog sẽ kiểm tra lại.
+     * Restart only when the blockchain really stops moving.
      */
     private static final long STALL_TIMEOUT_MS = 90_000L;
 
     /*
-     * Không restart vô hạn.
+     * Prevent endless restart loops.
      */
     private static final int MAX_AUTO_RESTARTS = 8;
 
     private MainActivityContract.MainActivityView view;
 
     private final File walletDir;
-    private final File walletFile;
 
     private NetworkParameters parameters;
 
     private volatile WalletAppKit walletAppKit;
-    private volatile boolean walletReady = false;
-    private volatile boolean stopping = false;
+
+    private final File walletFile;
 
     private final Handler mainHandler =
             new Handler(Looper.getMainLooper());
 
-    private ScheduledExecutorService watchdogExecutor;
+    private final Object kitLock = new Object();
 
-    private volatile long lastProgressTime =
-            System.currentTimeMillis();
+    private final AtomicBoolean restartInProgress =
+            new AtomicBoolean(false);
 
-    private volatile int lastProgressPercent = -1;
+    private volatile boolean walletReady = false;
+
+    private volatile boolean downloadFinished = false;
+
+    private volatile boolean shuttingDown = false;
+
+    private volatile int lastPercent = -1;
+
+    private volatile int lastChainHeight = -1;
+
+    private volatile long lastProgressAt = 0L;
 
     private volatile int autoRestartCount = 0;
 
-    private final AtomicBoolean restarting =
-            new AtomicBoolean(false);
+    private ScheduledExecutorService watchdog;
+
 
     public MainActivityPresenter(
             MainActivityContract.MainActivityView view,
@@ -91,11 +100,11 @@ public class MainActivityPresenter
         view.setPresenter(this);
     }
 
+
     @Override
     public void subscribe() {
 
-        stopping = false;
-        walletReady = false;
+        shuttingDown = false;
 
         setBtcSDKThread();
 
@@ -106,370 +115,1087 @@ public class MainActivityPresenter
 
         BriefLogFormatter.init();
 
-        startWallet();
+        runOnUi(() ->
+                view.displayDownloadContent(true)
+        );
 
         startWatchdog();
+
+        startWalletKit();
     }
 
-    private void startWallet() {
 
-        new Thread(
-                this::startWalletInternal,
-                "BitcoinWallet-Startup"
-        ).start();
-    }
+    private void startWalletKit() {
 
-    private void startWalletInternal() {
+        new Thread(() -> {
 
-        if (stopping) {
-            return;
-        }
+            if (shuttingDown) {
+                return;
+            }
 
-        try {
+            WalletAppKit kit = null;
 
-            Log.d(
-                    TAG,
-                    "Starting WalletAppKit"
-            );
+            try {
 
-            Log.d(
-                    TAG,
-                    "Wallet directory = "
-                            + walletDir.getAbsolutePath()
-            );
+                synchronized (kitLock) {
 
-            Log.d(
-                    TAG,
-                    "Wallet file = "
-                            + walletFile.getAbsolutePath()
-            );
+                    if (shuttingDown) {
+                        return;
+                    }
 
-            walletAppKit =
-                    new WalletAppKit(
-                            parameters,
-                            walletDir,
-                            Constants.WALLET_NAME
-                    ) {
+                    final WalletAppKit newKit =
+                            new WalletAppKit(
+                                    parameters,
+                                    walletDir,
+                                    Constants.WALLET_NAME
+                            ) {
 
-                        @Override
-                        protected void onSetupCompleted() {
+                                @Override
+                                protected void onSetupCompleted() {
 
-                            Log.d(
-                                    TAG,
-                                    "WalletAppKit setup completed"
-                            );
+                                    /*
+                                     * Configure PeerGroup.
+                                     */
+                                    try {
 
-                            Wallet wallet = wallet();
+                                        peerGroup()
+                                                .setMaxConnections(
+                                                        MAX_CONNECTIONS
+                                                );
 
-                            /*
-                             * KHÔNG import ECKey ngẫu nhiên ở đây.
-                             *
-                             * Wallet deterministic đã có keychain riêng.
-                             * Import ECKey mới có thể tạo thêm một key
-                             * không cần thiết.
-                             */
+                                        peerGroup()
+                                                .setMaxPeersToDiscoverCount(
+                                                        100
+                                                );
 
-                            wallet.setAutoSave(
-                                    true,
-                                    10,
-                                    TimeUnit.SECONDS
-                            );
+                                        Log.d(
+                                                TAG,
+                                                "PeerGroup configured: "
+                                                        + "maxConnections="
+                                                        + MAX_CONNECTIONS
+                                                        + ", maxPeersToDiscover=100"
+                                        );
 
-                            setupWalletListeners(wallet);
+                                    } catch (Exception e) {
 
-                            walletReady = true;
+                                        Log.w(
+                                                TAG,
+                                                "PeerGroup tuning failed; "
+                                                        + "using defaults",
+                                                e
+                                        );
+                                    }
 
-                            runOnUi(
-                                    () -> view.displayWalletPath(
-                                            walletFile.getAbsolutePath()
-                                    )
-                            );
 
-                            /*
-                             * QUAN TRỌNG:
-                             *
-                             * Không dùng freshReceiveAddress().
-                             *
-                             * currentReceiveAddress() giữ nguyên địa chỉ
-                             * hiện tại nếu địa chỉ đó chưa được sử dụng.
-                             */
-                            Log.d(
-                                    TAG,
-                                    "Current receive address = "
-                                            + wallet.currentReceiveAddress()
-                            );
+                                    /*
+                                     * Do NOT create/import a random ECKey.
+                                     *
+                                     * WalletAppKit already manages the
+                                     * deterministic wallet.
+                                     */
+                                    setupWalletListeners(wallet());
 
-                            runOnUi(
-                                    MainActivityPresenter.this::refresh
-                            );
-                        }
-                    };
+                                    walletReady = true;
 
-            walletAppKit.setDownloadListener(
-                    new DownloadProgressTracker() {
 
-                        @Override
-                        protected void progress(
-                                double pct,
-                                int blocksSoFar,
-                                Instant date) {
+                                    int height =
+                                            safeChainHeight(this);
 
-                            super.progress(
-                                    pct,
-                                    blocksSoFar,
-                                    date
-                            );
+                                    lastChainHeight = height;
 
-                            int percentage =
-                                    (int) Math.round(
-                                            pct * 100
+                                    touchProgress();
+
+
+                                    runOnUi(() -> {
+
+                                        view.displayWalletPath(
+                                                walletFile.getAbsolutePath()
+                                        );
+
+                                        view.displayDownloadContent(true);
+
+                                        refresh();
+                                    });
+
+
+                                    Log.d(
+                                            TAG,
+                                            "Wallet setup complete. "
+                                                    + "chainHeight="
+                                                    + height
                                     );
 
-                            lastProgressTime =
-                                    System.currentTimeMillis();
 
-                            lastProgressPercent =
-                                    percentage;
+                                    /*
+                                     * IMPORTANT:
+                                     *
+                                     * currentReceiveAddress()
+                                     * does NOT intentionally rotate
+                                     * the receive address.
+                                     */
+                                    try {
 
-                            Log.d(
-                                    TAG,
-                                    "Sync progress = "
-                                            + percentage
-                                            + "%, blocks="
-                                            + blocksSoFar
-                            );
+                                        Log.d(
+                                                TAG,
+                                                "Current receive address = "
+                                                        + wallet()
+                                                        .currentReceiveAddress()
+                                        );
 
-                            runOnUi(() -> {
+                                    } catch (Exception e) {
 
-                                view.displayPercentage(
-                                        percentage
-                                );
+                                        Log.w(
+                                                TAG,
+                                                "Could not read current "
+                                                        + "receive address",
+                                                e
+                                        );
+                                    }
+                                }
+                            };
 
-                                view.displayProgress(
-                                        percentage
-                                );
-                            });
-                        }
 
-                        @Override
-                        protected void doneDownload() {
+                    /*
+                     * Blockchain download progress.
+                     */
+                    newKit.setDownloadListener(
+                            new DownloadProgressTracker() {
 
-                            super.doneDownload();
+                                @Override
+                                protected void progress(
+                                        double pct,
+                                        int blocksSoFar,
+                                        Instant date) {
 
-                            lastProgressTime =
-                                    System.currentTimeMillis();
+                                    super.progress(
+                                            pct,
+                                            blocksSoFar,
+                                            date
+                                    );
 
-                            Log.d(
-                                    TAG,
-                                    "Blockchain download completed"
-                            );
 
-                            runOnUi(() -> {
+                                    int percentage =
+                                            (int) Math.round(
+                                                    pct * 100.0
+                                            );
 
-                                view.displayDownloadContent(
-                                        false
-                                );
+                                    if (percentage < 0) {
+                                        percentage = 0;
+                                    }
 
-                                refresh();
-                            });
-                        }
+                                    if (percentage > 100) {
+                                        percentage = 100;
+                                    }
+
+
+                                    int chainHeight =
+                                            safeChainHeight(newKit);
+
+                                    int peerHeight =
+                                            safePeerHeight(newKit);
+
+                                    int peers =
+                                            safePeerCount(newKit);
+
+
+                                    /*
+                                     * Any real progress callback means
+                                     * bitcoinj is still working.
+                                     */
+                                    lastPercent = percentage;
+
+
+                                    if (chainHeight >
+                                            lastChainHeight) {
+
+                                        lastChainHeight =
+                                                chainHeight;
+                                    }
+
+
+                                    touchProgress();
+
+
+                                    Log.d(
+                                            TAG,
+                                            "SYNC progress="
+                                                    + percentage
+                                                    + "% blocks="
+                                                    + blocksSoFar
+                                                    + " chain="
+                                                    + chainHeight
+                                                    + " peerHeight="
+                                                    + peerHeight
+                                                    + " peers="
+                                                    + peers
+                                    );
+
+
+                                    final int uiPercent =
+                                            percentage;
+
+
+                                    runOnUi(() -> {
+
+                                        view.displayDownloadContent(
+                                                true
+                                        );
+
+                                        view.displayPercentage(
+                                                uiPercent
+                                        );
+
+                                        view.displayProgress(
+                                                uiPercent
+                                        );
+                                    });
+                                }
+
+
+                                @Override
+                                protected void doneDownload() {
+
+                                    super.doneDownload();
+
+                                    downloadFinished = true;
+
+                                    lastPercent = 100;
+
+                                    lastProgressAt =
+                                            System.currentTimeMillis();
+
+
+                                    Log.d(
+                                            TAG,
+                                            "SYNC doneDownload chain="
+                                                    + safeChainHeight(
+                                                    newKit
+                                            )
+                                                    + " peerHeight="
+                                                    + safePeerHeight(
+                                                    newKit
+                                            )
+                                                    + " peers="
+                                                    + safePeerCount(
+                                                    newKit
+                                            )
+                                    );
+
+
+                                    runOnUi(() -> {
+
+                                        view.displayPercentage(
+                                                100
+                                        );
+
+                                        view.displayProgress(
+                                                100
+                                        );
+
+                                        view.displayDownloadContent(
+                                                false
+                                        );
+
+                                        refresh();
+                                    });
+                                }
+                            }
+                    );
+
+
+                    /*
+                     * Non-blocking startup.
+                     */
+                    newKit.setBlockingStartup(false);
+
+
+                    /*
+                     * WalletAppKit owns autosave.
+                     */
+                    newKit.setAutoSave(true);
+
+
+                    walletAppKit = newKit;
+
+                    kit = newKit;
+                }
+
+
+                lastPercent = -1;
+
+                lastChainHeight =
+                        safeChainHeight(kit);
+
+                downloadFinished = false;
+
+                touchProgress();
+
+
+                Log.d(
+                        TAG,
+                        "Starting WalletAppKit. "
+                                + "walletDir="
+                                + walletDir.getAbsolutePath()
+                                + ", walletFile="
+                                + walletFile.getAbsolutePath()
+                );
+
+
+                /*
+                 * Start the bitcoinj service.
+                 */
+                kit.startAsync();
+
+
+                /*
+                 * Wait until WalletAppKit becomes RUNNING.
+                 *
+                 * If it fails, the catch block below retrieves
+                 * WalletAppKit.failureCause().
+                 */
+                kit.awaitRunning();
+
+
+                Log.d(
+                        TAG,
+                        "WalletAppKit is RUNNING. "
+                                + "peers="
+                                + safePeerCount(kit)
+                                + ", chainHeight="
+                                + safeChainHeight(kit)
+                );
+
+
+            } catch (Exception e) {
+
+                walletReady = false;
+
+
+                WalletAppKit failedKit;
+
+                synchronized (kitLock) {
+
+                    failedKit = walletAppKit;
+                }
+
+
+                Throwable rootCause =
+                        findRootCause(e);
+
+
+                /*
+                 * IMPORTANT:
+                 *
+                 * The exception:
+                 *
+                 * Expected the service [FAILED] to be RUNNING
+                 *
+                 * is only a wrapper.
+                 *
+                 * failureCause() contains the real reason.
+                 */
+                Throwable failureCause = null;
+
+
+                if (failedKit != null) {
+
+                    try {
+
+                        failureCause =
+                                failedKit.failureCause();
+
+                    } catch (Exception ignored) {
+                        /*
+                         * Keep the exception from awaitRunning().
+                         */
                     }
-            );
+                }
 
-            walletAppKit.setBlockingStartup(false);
 
-            /*
-             * WalletAppKit sẽ tự quản lý PeerGroup.
-             */
-            walletAppKit.startAsync().awaitRunning();
+                if (failureCause != null) {
 
-            Log.d(
-                    TAG,
-                    "WalletAppKit is RUNNING"
-            );
+                    rootCause =
+                            findRootCause(
+                                    failureCause
+                            );
+                }
 
-        } catch (Exception e) {
 
-            walletReady = false;
+                Log.e(
+                        TAG,
+                        "================================"
+                );
 
-            Log.e(
-                    TAG,
-                    "WalletAppKit failed to start",
-                    e
-            );
+                Log.e(
+                        TAG,
+                        "WalletAppKit FAILED",
+                        e
+                );
 
-            if (walletAppKit != null) {
+                Log.e(
+                        TAG,
+                        "WalletAppKit failureCause",
+                        failureCause
+                );
 
-                try {
+                Log.e(
+                        TAG,
+                        "WalletAppKit rootCause",
+                        rootCause
+                );
 
-                    Throwable cause =
-                            walletAppKit.failureCause();
+                Log.e(
+                        TAG,
+                        "================================"
+                );
 
-                    if (cause != null) {
 
-                        Log.e(
-                                TAG,
-                                "WalletAppKit failure cause",
-                                cause
+                final String errorText =
+                        buildFailureMessage(
+                                e,
+                                failureCause,
+                                rootCause
                         );
-                    }
 
-                } catch (Exception ignored) {
+
+                if (!shuttingDown) {
+
+                    runOnUi(() ->
+                            view.showToastMessage(
+                                    "Bitcoin sync error: "
+                                            + errorText
+                            )
+                    );
+
+
+                    scheduleRestartAfterFailure();
                 }
             }
 
-            runOnUi(
-                    () -> view.showToastMessage(
-                            "Bitcoin sync error: "
-                                    + e.getMessage()
-                    )
-            );
-
-            scheduleRestart();
-        }
+        }, "bitcoinj-start").start();
     }
 
-    @Override
-    public void unsubscribe() {
 
-        stopping = true;
-        walletReady = false;
+    /*
+     * Watch blockchain height rather than relying only
+     * on the displayed percentage.
+     */
+    private void startWatchdog() {
 
         stopWatchdog();
 
-        new Thread(
+
+        watchdog =
+                Executors.newSingleThreadScheduledExecutor(
+                        r -> {
+
+                            Thread t =
+                                    new Thread(
+                                            r,
+                                            "bitcoinj-watchdog"
+                                    );
+
+                            t.setDaemon(true);
+
+                            return t;
+                        }
+                );
+
+
+        watchdog.scheduleWithFixedDelay(
+
                 () -> {
+
+                    if (shuttingDown
+                            || downloadFinished
+                            || restartInProgress.get()) {
+
+                        return;
+                    }
+
 
                     WalletAppKit kit =
                             walletAppKit;
 
-                    walletAppKit = null;
 
-                    if (kit != null) {
-
-                        try {
-
-                            Log.d(
-                                    TAG,
-                                    "Stopping WalletAppKit"
-                            );
-
-                            kit.stopAsync()
-                                    .awaitTerminated();
-
-                        } catch (Exception e) {
-
-                            Log.e(
-                                    TAG,
-                                    "WalletAppKit stop error",
-                                    e
-                            );
-                        }
+                    if (kit == null) {
+                        return;
                     }
+
+
+                    if (!kit.isRunning()) {
+                        return;
+                    }
+
+
+                    int chainHeight =
+                            safeChainHeight(kit);
+
+                    int peerHeight =
+                            safePeerHeight(kit);
+
+                    int peers =
+                            safePeerCount(kit);
+
+
+                    /*
+                     * If blockchain height increases,
+                     * sync is alive.
+                     */
+                    if (chainHeight >
+                            lastChainHeight) {
+
+                        lastChainHeight =
+                                chainHeight;
+
+                        touchProgress();
+
+
+                        Log.d(
+                                TAG,
+                                "WATCHDOG healthy: "
+                                        + "chain="
+                                        + chainHeight
+                                        + " peerHeight="
+                                        + peerHeight
+                                        + " peers="
+                                        + peers
+                        );
+
+
+                        return;
+                    }
+
+
+                    long stalledFor =
+                            System.currentTimeMillis()
+                                    - lastProgressAt;
+
+
+                    if (stalledFor <
+                            STALL_TIMEOUT_MS) {
+
+                        return;
+                    }
+
+
+                    Log.w(
+                            TAG,
+                            "SYNC STALLED for "
+                                    + (stalledFor / 1000)
+                                    + "s: percent="
+                                    + lastPercent
+                                    + " chain="
+                                    + chainHeight
+                                    + " peerHeight="
+                                    + peerHeight
+                                    + " peers="
+                                    + peers
+                    );
+
+
+                    if (autoRestartCount >=
+                            MAX_AUTO_RESTARTS) {
+
+                        Log.e(
+                                TAG,
+                                "Maximum automatic sync "
+                                        + "restarts reached."
+                        );
+
+
+                        runOnUi(() ->
+                                view.showToastMessage(
+                                        "Sync đang chờ mạng. "
+                                                + "Hãy giữ ứng dụng mở "
+                                                + "để tiếp tục."
+                                )
+                        );
+
+
+                        /*
+                         * Prevent repeated warnings.
+                         */
+                        touchProgress();
+
+                        return;
+                    }
+
+
+                    restartWalletKit(
+                            "download stalled"
+                    );
+
                 },
-                "BitcoinWallet-Stop"
-        ).start();
+
+                15,
+                15,
+                TimeUnit.SECONDS
+        );
     }
 
-    @Override
-    public void refresh() {
 
-        if (!walletReady
-                || walletAppKit == null
-                || stopping) {
+    private void scheduleRestartAfterFailure() {
+
+        if (shuttingDown ||
+                watchdog == null) {
 
             return;
         }
 
-        new Thread(
+
+        if (autoRestartCount >=
+                MAX_AUTO_RESTARTS) {
+
+            Log.e(
+                    TAG,
+                    "Maximum automatic startup "
+                            + "restarts reached."
+            );
+
+
+            runOnUi(() ->
+                    view.showToastMessage(
+                            "Bitcoin không thể khởi động. "
+                                    + "Xem Logcat với tag "
+                                    + TAG
+                                    + " để biết nguyên nhân."
+                    )
+            );
+
+
+            return;
+        }
+
+
+        watchdog.schedule(
+
                 () -> {
 
-                    try {
+                    if (!shuttingDown &&
+                            !restartInProgress.get()) {
 
-                        Wallet wallet =
-                                walletAppKit.wallet();
-
-                        /*
-                         * KHÔNG BAO GIỜ dùng freshReceiveAddress()
-                         * trong refresh().
-                         *
-                         * freshReceiveAddress() yêu cầu wallet tạo
-                         * receive address mới.
-                         *
-                         * currentReceiveAddress() lấy địa chỉ hiện tại.
-                         */
-                        String myAddress =
-                                wallet.currentReceiveAddress()
-                                        .toString();
-
-                        String balance =
-                                wallet.getBalance()
-                                        .toFriendlyString();
-
-                        Log.d(
-                                TAG,
-                                "Refresh:"
-                                        + " address="
-                                        + myAddress
-                                        + " balance="
-                                        + balance
-                        );
-
-                        runOnUi(
-                                () -> {
-
-                                    view.displayMyBalance(
-                                            balance
-                                    );
-
-                                    view.displayMyAddress(
-                                            myAddress
-                                    );
-                                }
-                        );
-
-                    } catch (Exception e) {
-
-                        Log.e(
-                                TAG,
-                                "Refresh failed",
-                                e
+                        restartWalletKit(
+                                "WalletAppKit startup failed"
                         );
                     }
 
                 },
-                "BitcoinWallet-Refresh"
-        ).start();
+
+                10,
+                TimeUnit.SECONDS
+        );
     }
+
+
+    /*
+     * Restart only WalletAppKit/PeerGroup.
+     *
+     * NEVER delete wallet or SPV chain here.
+     */
+    private void restartWalletKit(
+            String reason) {
+
+        if (shuttingDown) {
+            return;
+        }
+
+
+        if (!restartInProgress.compareAndSet(
+                false,
+                true)) {
+
+            return;
+        }
+
+
+        autoRestartCount++;
+
+        walletReady = false;
+
+        downloadFinished = false;
+
+
+        Log.w(
+                TAG,
+                "Restarting WalletAppKit (#"
+                        + autoRestartCount
+                        + "): "
+                        + reason
+        );
+
+
+        runOnUi(() -> {
+
+            view.displayDownloadContent(true);
+
+            view.showToastMessage(
+                    "Kết nối blockchain bị gián đoạn, "
+                            + "đang kết nối lại..."
+            );
+        });
+
+
+        new Thread(() -> {
+
+            try {
+
+                WalletAppKit oldKit;
+
+
+                synchronized (kitLock) {
+
+                    oldKit =
+                            walletAppKit;
+
+                    walletAppKit = null;
+                }
+
+
+                if (oldKit != null) {
+
+                    try {
+
+                        oldKit
+                                .stopAsync()
+                                .awaitTerminated();
+
+                    } catch (Exception stopError) {
+
+                        Log.w(
+                                TAG,
+                                "Error stopping old "
+                                        + "WalletAppKit",
+                                stopError
+                        );
+                    }
+                }
+
+
+                if (!shuttingDown) {
+
+                    lastPercent = -1;
+
+                    lastChainHeight = -1;
+
+                    touchProgress();
+
+
+                    startWalletKit();
+                }
+
+
+            } finally {
+
+                restartInProgress.set(false);
+            }
+
+        }, "bitcoinj-reconnect").start();
+    }
+
+
+    private void touchProgress() {
+
+        lastProgressAt =
+                System.currentTimeMillis();
+    }
+
+
+    private int safeChainHeight(
+            WalletAppKit kit) {
+
+        try {
+
+            return kit == null ||
+                    kit.chain() == null
+
+                    ? 0
+
+                    : kit.chain()
+                            .getBestChainHeight();
+
+        } catch (Exception e) {
+
+            return 0;
+        }
+    }
+
+
+    private int safePeerHeight(
+            WalletAppKit kit) {
+
+        try {
+
+            PeerGroup peers =
+                    kit == null
+                            ? null
+                            : kit.peerGroup();
+
+
+            return peers == null
+                    ? 0
+                    : peers.getMostCommonChainHeight();
+
+        } catch (Exception e) {
+
+            return 0;
+        }
+    }
+
+
+    private int safePeerCount(
+            WalletAppKit kit) {
+
+        try {
+
+            PeerGroup peers =
+                    kit == null
+                            ? null
+                            : kit.peerGroup();
+
+
+            return peers == null
+                    ? 0
+                    : peers.getConnectedPeers()
+                            .size();
+
+        } catch (Exception e) {
+
+            return 0;
+        }
+    }
+
+
+    private Throwable findRootCause(
+            Throwable throwable) {
+
+        if (throwable == null) {
+            return null;
+        }
+
+
+        Throwable current =
+                throwable;
+
+
+        int guard = 0;
+
+
+        while (
+                current.getCause() != null
+                        && current.getCause() != current
+                        && guard++ < 32
+        ) {
+
+            current =
+                    current.getCause();
+        }
+
+
+        return current;
+    }
+
+
+    private String buildFailureMessage(
+            Exception startException,
+            Throwable failureCause,
+            Throwable rootCause) {
+
+        Throwable cause =
+                rootCause != null
+                        ? rootCause
+                        : startException;
+
+
+        String message =
+                cause.getMessage();
+
+
+        if (TextUtils.isEmpty(message)) {
+
+            message =
+                    cause.getClass()
+                            .getSimpleName();
+        }
+
+
+        return message;
+    }
+
+
+    private String safeMessage(
+            Exception e) {
+
+        if (e == null) {
+            return "Unknown error";
+        }
+
+
+        String message =
+                e.getMessage();
+
+
+        return TextUtils.isEmpty(message)
+
+                ? e.getClass()
+                        .getSimpleName()
+
+                : message;
+    }
+
+
+    @Override
+    public void unsubscribe() {
+
+        shuttingDown = true;
+
+        walletReady = false;
+
+        stopWatchdog();
+
+
+        new Thread(() -> {
+
+            WalletAppKit kit;
+
+
+            synchronized (kitLock) {
+
+                kit =
+                        walletAppKit;
+
+                walletAppKit = null;
+            }
+
+
+            try {
+
+                if (kit != null) {
+
+                    kit.stopAsync()
+                            .awaitTerminated();
+                }
+
+            } catch (Exception e) {
+
+                Log.w(
+                        TAG,
+                        "Error stopping WalletAppKit",
+                        e
+                );
+            }
+
+        }, "bitcoinj-stop").start();
+    }
+
+
+    private void stopWatchdog() {
+
+        if (watchdog != null) {
+
+            watchdog.shutdownNow();
+
+            watchdog = null;
+        }
+    }
+
+
+    @Override
+    public void refresh() {
+
+        WalletAppKit kit =
+                walletAppKit;
+
+
+        if (!walletReady ||
+                kit == null) {
+
+            return;
+        }
+
+
+        new Thread(() -> {
+
+            try {
+
+                Wallet w =
+                        kit.wallet();
+
+
+                /*
+                 * IMPORTANT:
+                 *
+                 * Do NOT use freshReceiveAddress().
+                 *
+                 * That explicitly requests a new receive address.
+                 *
+                 * currentReceiveAddress() keeps the current
+                 * receive address stable.
+                 */
+                String myAddress =
+                        w.currentReceiveAddress()
+                                .toString();
+
+
+                runOnUi(() -> {
+
+                    view.displayMyBalance(
+                            w.getBalance()
+                                    .toFriendlyString()
+                    );
+
+                    view.displayMyAddress(
+                            myAddress
+                    );
+                });
+
+
+            } catch (Exception e) {
+
+                Log.w(
+                        TAG,
+                        "Refresh failed",
+                        e
+                );
+            }
+
+        }, "bitcoinj-refresh").start();
+    }
+
 
     @Override
     public void pickRecipient() {
 
         view.displayRecipientAddress(null);
+
         view.startScanQR();
     }
+
 
     @Override
     public void send() {
 
-        if (!walletReady
-                || walletAppKit == null
-                || stopping) {
+        WalletAppKit kit =
+                walletAppKit;
 
-            view.showToastMessage(
-                    "Wallet is not ready"
-            );
+
+        if (!walletReady ||
+                kit == null) {
 
             return;
         }
 
+
         final String recipientAddress =
                 view.getRecipient();
+
 
         final String amount =
                 view.getAmount();
 
-        if (TextUtils.isEmpty(recipientAddress)
+
+        if (TextUtils.isEmpty(
+                recipientAddress)
                 || recipientAddress.equals(
                 "Scan recipient QR")) {
 
@@ -480,6 +1206,7 @@ public class MainActivityPresenter
             return;
         }
 
+
         if (TextUtils.isEmpty(amount)) {
 
             view.showToastMessage(
@@ -489,12 +1216,26 @@ public class MainActivityPresenter
             return;
         }
 
+
         final Coin coinAmount;
+
 
         try {
 
             coinAmount =
                     Coin.parseCoin(amount);
+
+
+            if (coinAmount.isZero()
+                    || coinAmount.isNegative()) {
+
+                view.showToastMessage(
+                        "Select valid amount"
+                );
+
+                return;
+            }
+
 
         } catch (Exception e) {
 
@@ -505,155 +1246,155 @@ public class MainActivityPresenter
             return;
         }
 
-        if (coinAmount.isZero()
-                || coinAmount.isNegative()) {
 
-            view.showToastMessage(
-                    "Select valid amount"
-            );
+        new Thread(() -> {
 
-            return;
-        }
+            try {
 
-        new Thread(
-                () -> {
+                Wallet w =
+                        kit.wallet();
 
-                    try {
 
-                        Wallet wallet =
-                                walletAppKit.wallet();
+                if (w.getBalance()
+                        .isLessThan(
+                                coinAmount)) {
 
-                        if (wallet.getBalance()
-                                .isLessThan(coinAmount)) {
+                    runOnUi(() ->
+                            view.showToastMessage(
+                                    "You got not enough coins"
+                            )
+                    );
 
-                            runOnUi(
-                                    () -> view.showToastMessage(
-                                            "You got not enough coins"
-                                    )
-                            );
+                    return;
+                }
 
-                            return;
-                        }
 
-                        LegacyAddress address =
+                SendRequest request =
+                        SendRequest.to(
                                 LegacyAddress.fromBase58(
                                         parameters,
                                         recipientAddress
-                                );
-
-                        SendRequest request =
-                                SendRequest.to(
-                                        address,
-                                        coinAmount
-                                );
-
-                        wallet.completeTx(request);
-
-                        wallet.commitTx(request.tx);
-
-                        walletAppKit
-                                .peerGroup()
-                                .broadcastTransaction(
-                                        request.tx
-                                )
-                                .broadcast();
-
-                        runOnUi(
-                                () -> {
-
-                                    view.clearAmount();
-
-                                    view.displayRecipientAddress(
-                                            null
-                                    );
-                                }
+                                ),
+                                coinAmount
                         );
 
-                    } catch (InsufficientMoneyException e) {
 
-                        Log.e(
-                                TAG,
-                                "Insufficient money",
-                                e
-                        );
+                w.completeTx(request);
 
-                        runOnUi(
-                                () -> view.showToastMessage(
-                                        e.getMessage()
-                                )
-                        );
+                w.commitTx(request.tx);
 
-                    } catch (Exception e) {
 
-                        Log.e(
-                                TAG,
-                                "Send failed",
-                                e
-                        );
+                kit.peerGroup()
+                        .broadcastTransaction(
+                                request.tx
+                        )
+                        .broadcast();
 
-                        runOnUi(
-                                () -> view.showToastMessage(
-                                        "Send failed: "
-                                                + e.getMessage()
-                                )
-                        );
-                    }
 
-                },
-                "BitcoinWallet-Send"
-        ).start();
+                runOnUi(() -> {
+
+                    view.clearAmount();
+
+                    view.displayRecipientAddress(
+                            null
+                    );
+                });
+
+
+            } catch (
+                    InsufficientMoneyException e) {
+
+                Log.e(
+                        TAG,
+                        "Send failed",
+                        e
+                );
+
+
+                runOnUi(() ->
+                        view.showToastMessage(
+                                safeMessage(e)
+                        )
+                );
+
+
+            } catch (Exception e) {
+
+                Log.e(
+                        TAG,
+                        "Send failed",
+                        e
+                );
+
+
+                runOnUi(() ->
+                        view.showToastMessage(
+                                safeMessage(e)
+                        )
+                );
+            }
+
+        }, "bitcoinj-send").start();
     }
+
 
     @Override
     public void getInfoDialog() {
 
-        if (!walletReady
-                || walletAppKit == null
-                || stopping) {
+        WalletAppKit kit =
+                walletAppKit;
+
+
+        if (!walletReady ||
+                kit == null) {
 
             return;
         }
 
-        new Thread(
-                () -> {
 
-                    try {
+        new Thread(() -> {
 
-                        String address =
-                                walletAppKit
-                                        .wallet()
-                                        .currentReceiveAddress()
-                                        .toString();
+            try {
 
-                        runOnUi(
-                                () -> view.displayInfoDialog(
-                                        address
-                                )
-                        );
+                String addr =
+                        kit.wallet()
+                                .currentReceiveAddress()
+                                .toString();
 
-                    } catch (Exception e) {
 
-                        Log.e(
-                                TAG,
-                                "Cannot get wallet address",
-                                e
-                        );
-                    }
+                runOnUi(() ->
+                        view.displayInfoDialog(
+                                addr
+                        )
+                );
 
-                },
-                "BitcoinWallet-Info"
-        ).start();
+
+            } catch (Exception e) {
+
+                Log.w(
+                        TAG,
+                        "Info failed",
+                        e
+                );
+            }
+
+        }, "bitcoinj-info").start();
     }
 
-    /*
-     * ============================================================
-     * WALLET EVENTS
-     * ============================================================
-     */
+
+    private void setBtcSDKThread() {
+
+        Threading.USER_THREAD =
+                mainHandler::post;
+    }
+
 
     private void setupWalletListeners(
             Wallet wallet) {
 
+        /*
+         * RECEIVE
+         */
         wallet.addCoinsReceivedEventListener(
                 (wallet1,
                  tx,
@@ -667,344 +1408,129 @@ public class MainActivityPresenter
                                         prevBalance
                                 );
 
+
                         /*
-                         * Sau khi transaction nhận coin được wallet
-                         * xử lý, hỏi lại currentReceiveAddress().
+                         * After bitcoinj processes the
+                         * received transaction, ask for
+                         * the current address.
                          *
-                         * Không gọi freshReceiveAddress().
-                         *
-                         * Nếu địa chỉ hiện tại chưa được sử dụng,
-                         * nó vẫn giữ nguyên.
-                         *
-                         * Nếu wallet đã advance keychain sau khi
-                         * nhận coin, currentReceiveAddress() sẽ trả
-                         * về địa chỉ kế tiếp.
+                         * Do NOT call freshReceiveAddress().
                          */
                         String currentAddress =
                                 wallet1
                                         .currentReceiveAddress()
                                         .toString();
 
-                        wallet1.saveNow();
 
                         Log.d(
                                 TAG,
                                 "COINS RECEIVED: "
                                         + received
-                                                .toFriendlyString()
+                                        .toFriendlyString()
                         );
+
 
                         Log.d(
                                 TAG,
-                                "Current receive address after "
-                                        + "transaction = "
+                                "Current receive address "
+                                        + "after transaction = "
                                         + currentAddress
                         );
 
-                        runOnUi(
-                                () -> {
 
-                                    view.displayMyBalance(
-                                            wallet1.getBalance()
-                                                    .toFriendlyString()
-                                    );
+                        runOnUi(() -> {
 
-                                    view.displayMyAddress(
-                                            currentAddress
-                                    );
+                            view.displayMyBalance(
+                                    wallet1
+                                            .getBalance()
+                                            .toFriendlyString()
+                            );
 
-                                    if (tx.getPurpose()
-                                            == Transaction.Purpose.UNKNOWN) {
 
-                                        view.showToastMessage(
-                                                "Receive "
-                                                        + received
-                                                        .toFriendlyString()
-                                        );
-                                    }
-                                }
-                        );
+                            /*
+                             * Update displayed receive
+                             * address after the wallet
+                             * advances its current key.
+                             */
+                            view.displayMyAddress(
+                                    currentAddress
+                            );
+
+
+                            if (tx.getPurpose()
+                                    == Transaction.Purpose.UNKNOWN) {
+
+                                view.showToastMessage(
+                                        "Receive "
+                                                + received
+                                                .toFriendlyString()
+                                );
+                            }
+                        });
+
 
                     } catch (Exception e) {
 
                         Log.e(
                                 TAG,
-                                "Failed to process coins received",
+                                "Failed to process "
+                                        + "coins received event",
                                 e
                         );
                     }
                 }
         );
 
+
+        /*
+         * SEND
+         */
         wallet.addCoinsSentEventListener(
                 (wallet1,
                  tx,
                  prevBalance,
                  newBalance) -> {
 
-                    runOnUi(
-                            () -> {
+                    runOnUi(() -> {
 
-                                view.displayMyBalance(
-                                        wallet1.getBalance()
-                                                .toFriendlyString()
-                                );
+                        view.displayMyBalance(
+                                wallet1
+                                        .getBalance()
+                                        .toFriendlyString()
+                        );
 
-                                view.clearAmount();
 
-                                view.displayRecipientAddress(
-                                        null
-                                );
+                        view.clearAmount();
 
-                                view.showToastMessage(
-                                        "Sent "
-                                                + prevBalance
-                                                .minus(newBalance)
-                                                .minus(tx.getFee())
-                                                .toFriendlyString()
-                                );
-                            }
-                    );
+                        view.displayRecipientAddress(
+                                null
+                        );
+
+
+                        view.showToastMessage(
+                                "Sent "
+                                        + prevBalance
+                                        .minus(newBalance)
+                                        .minus(tx.getFee())
+                                        .toFriendlyString()
+                        );
+                    });
                 }
         );
     }
 
-    /*
-     * ============================================================
-     * WATCHDOG
-     * ============================================================
-     */
 
-    private void startWatchdog() {
-
-        stopWatchdog();
-
-        watchdogExecutor =
-                Executors.newSingleThreadScheduledExecutor(
-                        r -> {
-
-                            Thread thread =
-                                    new Thread(
-                                            r,
-                                            "BitcoinWallet-Watchdog"
-                                    );
-
-                            thread.setDaemon(true);
-
-                            return thread;
-                        }
-                );
-
-        watchdogExecutor.scheduleWithFixedDelay(
-                this::checkWalletHealth,
-                30,
-                30,
-                TimeUnit.SECONDS
-        );
-    }
-
-    private void stopWatchdog() {
-
-        if (watchdogExecutor != null) {
-
-            try {
-                watchdogExecutor.shutdownNow();
-            } catch (Exception ignored) {
-            }
-
-            watchdogExecutor = null;
-        }
-    }
-
-    private void checkWalletHealth() {
-
-        if (stopping
-                || walletAppKit == null) {
-
-            return;
-        }
-
-        try {
-
-            if (!walletAppKit.isRunning()) {
-
-                Log.w(
-                        TAG,
-                        "Watchdog: WalletAppKit is not running"
-                );
-
-                scheduleRestart();
-
-                return;
-            }
-
-            long now =
-                    System.currentTimeMillis();
-
-            long stalledFor =
-                    now - lastProgressTime;
-
-            int percent =
-                    lastProgressPercent;
-
-            /*
-             * Nếu đã hoàn tất sync thì không coi là stall.
-             */
-            if (percent >= 100) {
-                return;
-            }
-
-            if (stalledFor >= STALL_TIMEOUT_MS) {
-
-                Log.w(
-                        TAG,
-                        "Watchdog: sync stalled at "
-                                + percent
-                                + "% for "
-                                + stalledFor
-                                + " ms"
-                );
-
-                scheduleRestart();
-            }
-
-        } catch (Exception e) {
-
-            Log.e(
-                    TAG,
-                    "Watchdog check failed",
-                    e
-            );
-        }
-    }
-
-    private void scheduleRestart() {
-
-        if (stopping) {
-            return;
-        }
-
-        if (autoRestartCount >= MAX_AUTO_RESTARTS) {
-
-            Log.e(
-                    TAG,
-                    "Maximum automatic restarts reached: "
-                            + MAX_AUTO_RESTARTS
-            );
-
-            runOnUi(
-                    () -> view.showToastMessage(
-                            "Bitcoin sync stopped. "
-                                    + "Please restart the app."
-                    )
-            );
-
-            return;
-        }
-
-        if (!restarting.compareAndSet(false, true)) {
-            return;
-        }
-
-        autoRestartCount++;
-
-        Log.w(
-                TAG,
-                "Scheduling wallet restart #"
-                        + autoRestartCount
-        );
-
-        new Thread(
-                () -> {
-
-                    try {
-
-                        Thread.sleep(10_000L);
-
-                        if (stopping) {
-                            return;
-                        }
-
-                        restartWallet();
-
-                    } catch (InterruptedException e) {
-
-                        Thread.currentThread().interrupt();
-
-                    } finally {
-
-                        restarting.set(false);
-                    }
-
-                },
-                "BitcoinWallet-Restart"
-        ).start();
-    }
-
-    private void restartWallet() {
-
-        WalletAppKit oldKit =
-                walletAppKit;
-
-        walletReady = false;
-
-        if (oldKit != null) {
-
-            try {
-
-                Log.d(
-                        TAG,
-                        "Stopping old WalletAppKit before restart"
-                );
-
-                oldKit.stopAsync()
-                        .awaitTerminated();
-
-            } catch (Exception e) {
-
-                Log.e(
-                        TAG,
-                        "Error stopping old WalletAppKit",
-                        e
-                );
-            }
-        }
-
-        walletAppKit = null;
-
-        /*
-         * TUYỆT ĐỐI không xoá:
-         *
-         * wallet.wallet
-         * wallet.spvchain
-         *
-         * Blockchain state được giữ lại để lần chạy sau
-         * tiếp tục sync thay vì tải lại từ đầu.
-         */
-        lastProgressTime =
-                System.currentTimeMillis();
-
-        lastProgressPercent = -1;
-
-        startWallet();
-    }
-
-    private void setBtcSDKThread() {
-
-        Threading.USER_THREAD =
-                mainHandler::post;
-    }
-
-    private void runOnUi(Runnable runnable) {
+    private void runOnUi(
+            Runnable r) {
 
         if (Looper.myLooper()
                 == Looper.getMainLooper()) {
 
-            runnable.run();
+            r.run();
 
         } else {
 
-            mainHandler.post(runnable);
+            mainHandler.post(r);
         }
     }
 }
