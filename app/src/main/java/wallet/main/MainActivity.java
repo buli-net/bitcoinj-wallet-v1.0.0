@@ -26,8 +26,8 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.thinkmobiles.bitcoinwalletsample.Constants;
-import com.example.thinkmobiles.bitcoinwalletsample.R;
+import wallet.Constants;
+import wallet.R;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 
