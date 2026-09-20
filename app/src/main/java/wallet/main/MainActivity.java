@@ -27,7 +27,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import wallet.Constants;
-import wallet.R;
+import wallet.main.R;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 
