@@ -1,4 +1,4 @@
-package com.example.thinkmobiles.bitcoinwalletsample.main;
+package wallet.main;
 
 import com.example.thinkmobiles.bitcoinwalletsample.base.BasePresenter;
 import com.example.thinkmobiles.bitcoinwalletsample.base.BaseView;
