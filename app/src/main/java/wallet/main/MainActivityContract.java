@@ -1,7 +1,7 @@
 package wallet.main;
 
-import com.example.thinkmobiles.bitcoinwalletsample.base.BasePresenter;
-import com.example.thinkmobiles.bitcoinwalletsample.base.BaseView;
+import wallet.base.BasePresenter;
+import wallet.base.BaseView;
 
 /**
  * Created by Lynx on 4/11/2017.
