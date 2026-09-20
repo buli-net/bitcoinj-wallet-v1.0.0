@@ -2,6 +2,7 @@ package com.example.thinkmobiles.bitcoinwalletsample.main;
 
 import android.os.Handler;
 import android.os.Looper;
+import android.support.v7.app.AlertDialog;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -28,6 +29,12 @@ import java.io.InputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.time.Instant;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -52,6 +59,18 @@ public class MainActivityPresenter
      * Prevent endless restart loops.
      */
     private static final int MAX_AUTO_RESTARTS = 8;
+
+    /* Fee slider: 1 to 10 sat/vB, represented as sat/vkB. */
+    private static final int MIN_FEE_RATE_SAT_PER_VKB = 1000;
+    private static final int MAX_FEE_RATE_SAT_PER_VKB = 10000;
+
+    /* Transaction history: 10 transactions per page, no total-history limit. */
+    private static final int HISTORY_PAGE_SIZE = 10;
+
+    private volatile List<String> historyItems =
+            Collections.emptyList();
+
+    private volatile int historyPage = 0;
 
     private MainActivityContract.MainActivityView view;
 
@@ -1143,15 +1162,34 @@ public class MainActivityPresenter
                                 .toString();
 
 
+                final String balance =
+                        w.getBalance().toFriendlyString();
+
+                final int pageCount =
+                        rebuildTransactionHistory(w);
+
+                final String history =
+                        getHistoryPageText();
+
+                final int currentPage = historyPage;
+
                 runOnUi(() -> {
 
                     view.displayMyBalance(
-                            w.getBalance()
-                                    .toFriendlyString()
+                            balance
                     );
 
                     view.displayMyAddress(
                             myAddress
+                    );
+
+                    view.displayTransactionHistory(
+                            history
+                    );
+
+                    view.displayTransactionHistoryPages(
+                            currentPage,
+                            pageCount
                     );
                 });
 
@@ -1181,77 +1219,46 @@ public class MainActivityPresenter
     @Override
     public void send() {
 
-        WalletAppKit kit =
-                walletAppKit;
+        WalletAppKit kit = walletAppKit;
 
-
-        if (!walletReady ||
-                kit == null) {
-
+        if (!walletReady || kit == null) {
             return;
         }
 
+        final String recipientAddress = view.getRecipient();
+        final String amount = view.getAmount();
+        final int feeRateSatPerVkb = view.getFeeRateSatPerVkb();
 
-        final String recipientAddress =
-                view.getRecipient();
-
-
-        final String amount =
-                view.getAmount();
-
-
-        if (TextUtils.isEmpty(
-                recipientAddress)
-                || recipientAddress.equals(
-                "Scan recipient QR")) {
-
-            view.showToastMessage(
-                    "Select recipient"
-            );
-
+        if (TextUtils.isEmpty(recipientAddress)
+                || recipientAddress.equals("Scan recipient QR")) {
+            view.showToastMessage("Select recipient");
             return;
         }
-
 
         if (TextUtils.isEmpty(amount)) {
-
-            view.showToastMessage(
-                    "Select valid amount"
-            );
-
+            view.showToastMessage("Select valid amount");
             return;
         }
 
+        if (feeRateSatPerVkb < MIN_FEE_RATE_SAT_PER_VKB
+                || feeRateSatPerVkb > MAX_FEE_RATE_SAT_PER_VKB) {
+            view.showToastMessage("Select valid fee rate");
+            return;
+        }
 
         final Coin coinAmount;
 
-
         try {
+            coinAmount = Coin.parseCoin(amount);
 
-            coinAmount =
-                    Coin.parseCoin(amount);
-
-
-            if (coinAmount.isZero()
-                    || coinAmount.isNegative()) {
-
-                view.showToastMessage(
-                        "Select valid amount"
-                );
-
+            if (coinAmount.isZero() || coinAmount.isNegative()) {
+                view.showToastMessage("Select valid amount");
                 return;
             }
-
-
         } catch (Exception e) {
-
-            view.showToastMessage(
-                    "Select valid amount"
-            );
-
+            view.showToastMessage("Select valid amount");
             return;
         }
-
 
         new Thread(() -> {
 
@@ -1259,92 +1266,145 @@ public class MainActivityPresenter
 
             try {
 
-                Wallet w =
-                        kit.wallet();
+                Wallet w = kit.wallet();
 
-
-                if (w.getBalance()
-                        .isLessThan(
-                                coinAmount)) {
-
-                    runOnUi(() ->
-                            view.showToastMessage(
-                                    "You got not enough coins"
-                            )
-                    );
-
+                if (w.getBalance().isLessThan(coinAmount)) {
+                    runOnUi(() -> view.showToastMessage(
+                            "Not enough balance. Available: "
+                                    + w.getBalance().toFriendlyString()));
                     return;
                 }
 
+                Address destination = Address.fromString(
+                        parameters,
+                        recipientAddress
+                );
 
-                SendRequest request =
-                        SendRequest.to(
-                                Address.fromString(
-                                        parameters,
-                                        recipientAddress
-                                ),
-                                coinAmount
-                        );
+                SendRequest request = SendRequest.to(
+                        destination,
+                        coinAmount
+                );
 
+                /*
+                 * bitcoinj 0.17.1 uses feePerKb as satoshis per
+                 * virtual kilobyte. The UI exposes the same unit.
+                 */
+                request.setFeePerVkb(
+                        Coin.valueOf(feeRateSatPerVkb)
+                );
+
+                /*
+                 * Keep bitcoinj's minimum relay-fee protection enabled.
+                 * The selected fee is therefore a target, not a promise
+                 * that the final fee can be lower than network policy.
+                 */
+                request.ensureMinRequiredFee = true;
 
                 w.completeTx(request);
 
-                w.commitTx(request.tx);
+                final Coin actualFee = request.tx.getFee();
+                final Coin total = coinAmount.add(actualFee);
+                final Coin balanceAfter = w.getBalance().minus(total);
+                final int txSize = request.tx.getMessageSize();
 
-
-                kit.peerGroup()
-                        .broadcastTransaction(
-                                request.tx
-                        )
-                        .broadcast();
-
+                final String details =
+                        "Recipient:\n" + recipientAddress
+                                + "\n\nAmount:\n" + coinAmount.toFriendlyString()
+                                + "\n\nFee rate:\n" + feeRateSatPerVkb + " sat/vkB"
+                                + " (" + (feeRateSatPerVkb / 1000.0) + " sat/vB)"
+                                + "\n\nActual fee:\n" + actualFee.toFriendlyString()
+                                + "\n\nTransaction size:\n" + txSize + " vbytes"
+                                + "\n\nTotal:\n" + total.toFriendlyString()
+                                + "\n\nEstimated balance after:\n" + balanceAfter.toFriendlyString();
 
                 runOnUi(() -> {
+                    view.displaySendDetails(
+                            feeRateSatPerVkb + " sat/vkB",
+                            actualFee.toFriendlyString(),
+                            total.toFriendlyString(),
+                            balanceAfter.toFriendlyString()
+                    );
 
-                    view.clearAmount();
+                    showSendConfirmation(
+                            details,
+                            () -> {
+                            new Thread(() -> {
+                                Context.propagate(
+                                        Context.getOrCreate(parameters)
+                                );
 
-                    view.displayRecipientAddress(
-                            null
+                                try {
+                                    Wallet currentWallet = kit.wallet();
+                                    currentWallet.commitTx(request.tx);
+
+                                    kit.peerGroup()
+                                            .broadcastTransaction(request.tx)
+                                            .broadcast();
+
+                                    runOnUi(() -> {
+                                        view.clearAmount();
+                                        view.displayRecipientAddress(null);
+                                        view.showToastMessage(
+                                                "Transaction broadcast. Fee: "
+                                                        + actualFee.toFriendlyString()
+                                        );
+                                    });
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Broadcast failed", e);
+                                    runOnUi(() -> view.showToastMessage(
+                                            "Broadcast failed: " + safeMessage(e)
+                                    ));
+                                }
+                            }, "bitcoinj-broadcast").start();
+                        }
                     );
                 });
 
+            } catch (InsufficientMoneyException e) {
 
-            } catch (
-                    InsufficientMoneyException e) {
+                Log.e(TAG, "Send failed", e);
 
-                Log.e(
-                        TAG,
-                        "Send failed",
-                        e
-                );
+                runOnUi(() -> view.showToastMessage(
+                        "Insufficient money. Missing: "
+                                + e.missing.toFriendlyString()
+                                + "\nSelected fee rate: "
+                                + feeRateSatPerVkb + " sat/vkB"
+                ));
 
+            } catch (Wallet.DustySendRequested e) {
 
-                runOnUi(() ->
-                        view.showToastMessage(
-                                safeMessage(e)
-                        )
-                );
+                Log.e(TAG, "Dusty send rejected", e);
 
+                runOnUi(() -> view.showToastMessage(
+                        "Amount is below the allowed dust limit for this transaction."
+                ));
 
             } catch (Exception e) {
 
-                Log.e(
-                        TAG,
-                        "Send failed",
-                        e
-                );
+                Log.e(TAG, "Send failed", e);
 
-
-                runOnUi(() ->
-                        view.showToastMessage(
-                                safeMessage(e)
-                        )
-                );
+                runOnUi(() -> view.showToastMessage(
+                        safeMessage(e)
+                ));
             }
 
         }, "bitcoinj-send").start();
     }
 
+    private void showSendConfirmation(
+            String details,
+            Runnable confirmAction) {
+
+        new AlertDialog.Builder(
+                view.getActivityContext()
+        )
+                .setTitle("Confirm transaction")
+                .setMessage(details)
+                .setNegativeButton("CANCEL", null)
+                .setPositiveButton("SEND", (dialog, which) ->
+                        confirmAction.run())
+                .show();
+    }
 
     @Override
     public void prepareWalletBackup() {
@@ -1635,13 +1695,6 @@ public class MainActivityPresenter
     private void setupWalletListeners(
             Wallet wallet) {
 
-        /*
-         * RECEIVE
-         *
-         * IMPORTANT: do all bitcoinj Wallet/Transaction reads before
-         * switching to the Android main thread.  The main thread does
-         * not necessarily have a bitcoinj Context.
-         */
         wallet.addCoinsReceivedEventListener(
                 (wallet1,
                  tx,
@@ -1651,20 +1704,21 @@ public class MainActivityPresenter
                     try {
 
                         Coin received =
-                                newBalance.minus(
-                                        prevBalance
-                                );
+                                newBalance.minus(prevBalance);
 
                         String balance =
                                 newBalance.toFriendlyString();
 
                         String currentAddress =
-                                wallet1
-                                        .currentReceiveAddress()
-                                        .toString();
+                                wallet1.currentReceiveAddress().toString();
 
-                        Transaction.Purpose purpose =
-                                tx.getPurpose();
+                        int pageCount =
+                                rebuildTransactionHistory(wallet1);
+
+                        String history =
+                                getHistoryPageText();
+
+                        int currentPage = historyPage;
 
                         Log.d(
                                 TAG,
@@ -1672,43 +1726,19 @@ public class MainActivityPresenter
                                         + received.toFriendlyString()
                         );
 
-                        Log.d(
-                                TAG,
-                                "Balance after receive = "
-                                        + balance
-                        );
-
-                        Log.d(
-                                TAG,
-                                "Current receive address after transaction = "
-                                        + currentAddress
-                        );
-
-                        /*
-                         * Only plain values are passed to the UI thread.
-                         */
                         runOnUi(() -> {
 
-                            view.displayMyBalance(
-                                    balance
-                            );
+                            view.displayMyBalance(balance);
+                            view.displayMyAddress(currentAddress);
+                            view.displayTransactionHistory(history);
+                            view.displayTransactionHistoryPages(currentPage, pageCount);
 
-                            /*
-                             * Do NOT call freshReceiveAddress().
-                             * bitcoinj has already advanced the current
-                             * receive key when appropriate.
-                             */
-                            view.displayMyAddress(
-                                    currentAddress
-                            );
-
-                            if (purpose ==
+                            if (tx.getPurpose() ==
                                     Transaction.Purpose.UNKNOWN) {
 
                                 view.showToastMessage(
                                         "Receive "
-                                                + received
-                                                .toFriendlyString()
+                                                + received.toFriendlyString()
                                 );
                             }
                         });
@@ -1724,10 +1754,6 @@ public class MainActivityPresenter
                 }
         );
 
-
-        /*
-         * SEND
-         */
         wallet.addCoinsSentEventListener(
                 (wallet1,
                  tx,
@@ -1739,34 +1765,21 @@ public class MainActivityPresenter
                         String balance =
                                 newBalance.toFriendlyString();
 
-                        Coin fee = tx.getFee();
+                        int pageCount =
+                                rebuildTransactionHistory(wallet1);
 
-                        Coin sent =
-                                prevBalance
-                                        .minus(newBalance)
-                                        .minus(fee == null
-                                                ? Coin.ZERO
-                                                : fee);
+                        String history =
+                                getHistoryPageText();
 
-                        String sentAmount =
-                                sent.toFriendlyString();
+                        int currentPage = historyPage;
 
                         runOnUi(() -> {
 
-                            view.displayMyBalance(
-                                    balance
-                            );
-
+                            view.displayMyBalance(balance);
+                            view.displayTransactionHistory(history);
+                            view.displayTransactionHistoryPages(currentPage, pageCount);
                             view.clearAmount();
-
-                            view.displayRecipientAddress(
-                                    null
-                            );
-
-                            view.showToastMessage(
-                                    "Sent "
-                                            + sentAmount
-                            );
+                            view.displayRecipientAddress(null);
                         });
 
                     } catch (Exception e) {
@@ -1781,17 +1794,200 @@ public class MainActivityPresenter
         );
     }
 
-    private void runOnUi(
-            Runnable r) {
 
-        if (Looper.myLooper()
-                == Looper.getMainLooper()) {
+    /**
+     * Rebuilds the complete local transaction history from bitcoinj Wallet.
+     * No API, explorer or separate history database is used.
+     *
+     * @return number of pages required to display the complete history.
+     */
+    private int rebuildTransactionHistory(Wallet wallet) {
 
-            r.run();
+        try {
 
-        } else {
+            List<Transaction> transactions =
+                    wallet.getTransactionsByTime();
 
-            mainHandler.post(r);
+            List<String> items =
+                    new ArrayList<>();
+
+            SimpleDateFormat dateFormat =
+                    new SimpleDateFormat(
+                            "yyyy-MM-dd HH:mm:ss",
+                            Locale.US
+                    );
+
+            if (transactions != null) {
+
+                for (Transaction tx : transactions) {
+
+                    Coin received =
+                            tx.getValueSentToMe(wallet);
+
+                    Coin sent =
+                            tx.getValueSentFromMe(wallet);
+
+                    Coin net =
+                            received.minus(sent);
+
+                    String type;
+                    String amount;
+
+                    if (net.isPositive()) {
+                        type = "RECEIVED";
+                        amount = "+" + net.toFriendlyString();
+                    } else if (net.isNegative()) {
+                        type = "SENT";
+                        amount = net.toFriendlyString();
+                    } else {
+                        type = "TRANSACTION";
+                        amount = net.toFriendlyString();
+                    }
+
+                    String txId =
+                            tx.getTxId().toString();
+
+                    String shortTxId =
+                            txId.length() > 16
+                                    ? txId.substring(0, 8)
+                                            + "..."
+                                            + txId.substring(txId.length() - 8)
+                                    : txId;
+
+                    String date = "Unknown time";
+
+                    if (tx.updateTime().isPresent()) {
+                        date = dateFormat.format(
+                                Date.from(tx.updateTime().get())
+                        );
+                    }
+
+                    int depth =
+                            tx.getConfidence() != null
+                                    ? tx.getConfidence().getDepthInBlocks()
+                                    : 0;
+
+                    String status =
+                            depth > 0
+                                    ? "Confirmed: " + depth + " block"
+                                            + (depth == 1 ? "" : "s")
+                                    : "Unconfirmed";
+
+                    StringBuilder item =
+                            new StringBuilder();
+
+                    item.append(type)
+                            .append("  ")
+                            .append(amount)
+                            .append("\n")
+                            .append(date)
+                            .append("  |  ")
+                            .append(status)
+                            .append("\n")
+                            .append("TX: ")
+                            .append(shortTxId)
+                            .append("\n");
+
+                    items.add(item.toString());
+                }
+            }
+
+            historyItems = items;
+
+            int pageCount =
+                    (items.size() + HISTORY_PAGE_SIZE - 1)
+                            / HISTORY_PAGE_SIZE;
+
+            if (pageCount == 0) {
+                historyPage = 0;
+            } else if (historyPage >= pageCount) {
+                historyPage = pageCount - 1;
+            }
+
+            return pageCount;
+
+        } catch (Exception e) {
+
+            Log.w(
+                    TAG,
+                    "Build transaction history failed",
+                    e
+            );
+
+            historyItems = Collections.emptyList();
+            historyPage = 0;
+            return 0;
         }
     }
+
+
+    private String getHistoryPageText() {
+
+        List<String> items = historyItems;
+
+        if (items == null || items.isEmpty()) {
+            return "No transactions yet.";
+        }
+
+        int start =
+                historyPage * HISTORY_PAGE_SIZE;
+
+        int end =
+                Math.min(
+                        start + HISTORY_PAGE_SIZE,
+                        items.size()
+                );
+
+        StringBuilder result =
+                new StringBuilder();
+
+        for (int i = start; i < end; i++) {
+
+            result.append("#")
+                    .append(i + 1)
+                    .append("  ")
+                    .append(items.get(i))
+                    .append("\n");
+        }
+
+        return result.toString().trim();
+    }
+
+
+    @Override
+    public void selectTransactionHistoryPage(int page) {
+
+        int pageCount =
+                (historyItems.size() + HISTORY_PAGE_SIZE - 1)
+                        / HISTORY_PAGE_SIZE;
+
+        if (pageCount == 0) {
+            historyPage = 0;
+            runOnUi(() -> {
+                view.displayTransactionHistory("No transactions yet.");
+                view.displayTransactionHistoryPages(0, 0);
+            });
+            return;
+        }
+
+        if (page < 0) {
+            page = 0;
+        }
+
+        if (page >= pageCount) {
+            page = pageCount - 1;
+        }
+
+        historyPage = page;
+
+        final int selectedPage = historyPage;
+        final String history = getHistoryPageText();
+
+        runOnUi(() -> {
+            view.displayTransactionHistory(history);
+            view.displayTransactionHistoryPages(selectedPage, pageCount);
+        });
+    }
+
+
 }

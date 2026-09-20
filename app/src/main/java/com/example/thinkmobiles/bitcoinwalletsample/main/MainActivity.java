@@ -20,7 +20,9 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -57,6 +59,8 @@ public class MainActivity extends AppCompatActivity
     private static final int REQUEST_CREATE_WALLET_BACKUP = 9001;
     private static final int REQUEST_OPEN_WALLET_BACKUP = 9002;
 
+    private static final int HISTORY_PAGE_WINDOW = 7;
+
     private MainActivityContract.MainActivityPresenter presenter;
     private boolean isUpdatingAmount = false;
 
@@ -88,6 +92,18 @@ public class MainActivity extends AppCompatActivity
     protected TextView tvWalletFilePath_AM;
 
     @ViewById
+    protected TextView tvTransactionHistory_AM;
+
+    @ViewById
+    protected Button btnHistoryPrev_AM;
+
+    @ViewById
+    protected Button btnHistoryNext_AM;
+
+    @ViewById
+    protected LinearLayout llHistoryPages_AM;
+
+    @ViewById
     protected TextView tvRecipientAddress_AM;
 
     @ViewById
@@ -101,6 +117,15 @@ public class MainActivity extends AppCompatActivity
 
     @ViewById
     protected Button btnRestoreWallet_AM;
+
+    @ViewById
+    protected SeekBar sbFee_AM;
+
+    @ViewById
+    protected TextView tvFeeRate_AM;
+
+    @ViewById
+    protected TextView tvFeeDetails_AM;
 
     @ViewById
     protected ImageView ivCopy_AM;
@@ -220,6 +245,130 @@ public class MainActivity extends AppCompatActivity
     @UiThread
     public void displayWalletPath(String walletPath) {
         tvWalletFilePath_AM.setText(walletPath);
+    }
+
+    @Override
+    @UiThread
+    public void displayTransactionHistory(String history) {
+        if (tvTransactionHistory_AM != null) {
+            tvTransactionHistory_AM.setText(history);
+        }
+    }
+
+    @Override
+    @UiThread
+    public void displayTransactionHistoryPages(
+            int currentPage,
+            int pageCount) {
+
+        if (btnHistoryPrev_AM == null
+                || btnHistoryNext_AM == null
+                || llHistoryPages_AM == null) {
+            return;
+        }
+
+        llHistoryPages_AM.removeAllViews();
+
+        if (pageCount <= 0) {
+            btnHistoryPrev_AM.setEnabled(false);
+            btnHistoryNext_AM.setEnabled(false);
+            return;
+        }
+
+        btnHistoryPrev_AM.setEnabled(currentPage > 0);
+        btnHistoryNext_AM.setEnabled(currentPage < pageCount - 1);
+
+        btnHistoryPrev_AM.setOnClickListener(v -> {
+            if (presenter != null) {
+                presenter.selectTransactionHistoryPage(currentPage - 1);
+            }
+        });
+
+        btnHistoryNext_AM.setOnClickListener(v -> {
+            if (presenter != null) {
+                presenter.selectTransactionHistoryPage(currentPage + 1);
+            }
+        });
+
+        int[] pageIndexes = buildHistoryPageIndexes(
+                currentPage,
+                pageCount
+        );
+
+        for (int i = 0; i < pageIndexes.length; i++) {
+
+            int page = pageIndexes[i];
+
+            if (page == -1) {
+                TextView dots = new TextView(this);
+                dots.setText("...");
+                dots.setTextSize(16);
+                dots.setGravity(android.view.Gravity.CENTER);
+                dots.setPadding(10, 0, 10, 0);
+                llHistoryPages_AM.addView(dots);
+                continue;
+            }
+
+            Button pageButton = new Button(this);
+            pageButton.setText(String.valueOf(page + 1));
+            pageButton.setMinWidth(48);
+            pageButton.setMinHeight(48);
+            pageButton.setPadding(4, 0, 4, 0);
+            pageButton.setAllCaps(false);
+
+            if (page == currentPage) {
+                pageButton.setEnabled(false);
+            }
+
+            pageButton.setOnClickListener(v -> {
+                if (presenter != null) {
+                    presenter.selectTransactionHistoryPage(page);
+                }
+            });
+
+            llHistoryPages_AM.addView(pageButton);
+        }
+    }
+
+    private int[] buildHistoryPageIndexes(
+            int currentPage,
+            int pageCount) {
+
+        if (pageCount <= HISTORY_PAGE_WINDOW) {
+            int[] result = new int[pageCount];
+            for (int i = 0; i < pageCount; i++) {
+                result[i] = i;
+            }
+            return result;
+        }
+
+        java.util.ArrayList<Integer> pages =
+                new java.util.ArrayList<>();
+
+        pages.add(0);
+
+        int start = Math.max(1, currentPage - 1);
+        int end = Math.min(pageCount - 2, currentPage + 1);
+
+        if (start > 1) {
+            pages.add(-1);
+        }
+
+        for (int page = start; page <= end; page++) {
+            pages.add(page);
+        }
+
+        if (end < pageCount - 2) {
+            pages.add(-1);
+        }
+
+        pages.add(pageCount - 1);
+
+        int[] result = new int[pages.size()];
+        for (int i = 0; i < pages.size(); i++) {
+            result[i] = pages.get(i);
+        }
+        return result;
     }
 
     @Override
@@ -450,6 +599,30 @@ public class MainActivity extends AppCompatActivity
                 presenter.send();
             }
         });
+
+        sbFee_AM.setMax(90);
+        sbFee_AM.setProgress(90);
+        updateFeeRateLabel();
+
+        sbFee_AM.setOnSeekBarChangeListener(
+                new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(
+                            SeekBar seekBar,
+                            int progress,
+                            boolean fromUser) {
+                        updateFeeRateLabel();
+                    }
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {
+                    }
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+                    }
+                }
+        );
 
         btnBackupWallet_AM.setOnClickListener(v -> {
             if (presenter != null) {
@@ -774,4 +947,51 @@ public class MainActivity extends AppCompatActivity
             presenter.unsubscribe();
         }
     }
+
+    private int getSelectedFeeRateSatPerVkb() {
+        return 1000 + (sbFee_AM.getProgress() * 100);
+    }
+
+    private void updateFeeRateLabel() {
+        if (tvFeeRate_AM == null || sbFee_AM == null) {
+            return;
+        }
+
+        int satPerVkb = getSelectedFeeRateSatPerVkb();
+        double satPerVb = satPerVkb / 1000.0;
+
+        tvFeeRate_AM.setText(
+                "Fee rate: " + satPerVkb + " sat/vkB ("
+                        + satPerVb + " sat/vB)"
+        );
+    }
+
+    @Override
+    public int getFeeRateSatPerVkb() {
+        return getSelectedFeeRateSatPerVkb();
+    }
+
+    @Override
+    public void displaySendDetails(
+            String feeRate,
+            String fee,
+            String total,
+            String remaining) {
+
+        if (tvFeeDetails_AM == null) {
+            return;
+        }
+
+        tvFeeDetails_AM.setText(
+                "Fee: " + fee
+                        + "    Total: " + total
+                        + "    Remaining: " + remaining
+        );
+    }
+
+    @Override
+    public android.content.Context getActivityContext() {
+        return this;
+    }
+
 }

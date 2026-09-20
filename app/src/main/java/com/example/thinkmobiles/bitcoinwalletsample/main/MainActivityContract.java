@@ -14,6 +14,8 @@ public interface MainActivityContract {
         void displayPercentage(int percent);
 
         void displayMyBalance(String myBalance);
+        void displayTransactionHistory(String history);
+        void displayTransactionHistoryPages(int currentPage, int pageCount);
         void displayWalletPath(String walletPath);
 
         void displayMyAddress(String myAddress);
@@ -23,6 +25,9 @@ public interface MainActivityContract {
         String getRecipient();
         String getAmount();
         void clearAmount();
+        int getFeeRateSatPerVkb();
+        void displaySendDetails(String feeRate, String fee, String total, String remaining);
+        android.content.Context getActivityContext();
 
         void startScanQR();
         void displayInfoDialog(String myAddress);
@@ -30,6 +35,7 @@ public interface MainActivityContract {
     }
     interface MainActivityPresenter extends BasePresenter {
         void refresh();
+        void selectTransactionHistoryPage(int page);
         void pickRecipient();
         void send();
 
