@@ -1990,4 +1990,19 @@ public class MainActivityPresenter
     }
 
 
+
+    private void runOnUi(
+            Runnable r) {
+
+        if (Looper.myLooper()
+                == Looper.getMainLooper()) {
+
+            r.run();
+
+        } else {
+
+            mainHandler.post(r);
+        }
+    }
+
 }
