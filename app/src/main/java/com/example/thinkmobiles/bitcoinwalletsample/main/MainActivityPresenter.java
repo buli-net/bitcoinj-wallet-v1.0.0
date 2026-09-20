@@ -7,8 +7,8 @@ import android.util.Log;
 
 import com.example.thinkmobiles.bitcoinwalletsample.Constants;
 
+import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
-import org.bitcoinj.base.LegacyAddress;
 import org.bitcoinj.core.InsufficientMoneyException;
 import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.PeerGroup;
@@ -1269,12 +1269,16 @@ public class MainActivityPresenter
                 }
 
 
+                Address recipient =
+                        Address.fromString(
+                                parameters,
+                                recipientAddress
+                        );
+
+
                 SendRequest request =
                         SendRequest.to(
-                                LegacyAddress.fromBase58(
-                                        parameters,
-                                        recipientAddress
-                                ),
+                                recipient,
                                 coinAmount
                         );
 
