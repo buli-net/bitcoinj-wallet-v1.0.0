@@ -36,7 +36,7 @@ public class MainActivityPresenter
     /*
      * P2P settings.
      */
-    private static final int MAX_CONNECTIONS = 8;
+    private static final int MAX_CONNECTIONS = 18;
 
     /*
      * Nếu sync không có tiến triển trong khoảng thời gian này,
@@ -47,7 +47,7 @@ public class MainActivityPresenter
     /*
      * Không restart vô hạn.
      */
-    private static final int MAX_AUTO_RESTARTS = 8;
+    private static final int MAX_AUTO_RESTARTS = 18;
 
     private MainActivityContract.MainActivityView view;
 
