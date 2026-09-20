@@ -983,9 +983,11 @@ public class MainActivity extends AppCompatActivity
         }
 
         tvFeeDetails_AM.setText(
-                "Fee: " + fee
-                        + "    Total: " + total
-                        + "    Remaining: " + remaining
+                "Actual fee: " + fee
+                        + "\nTotal: " + total
+                        + "\nRemaining: " + remaining
+                        + "\n\nThe selected fee rate is a target. "
+                        + "The final fee may be higher if bitcoinj adds a dust change amount to the fee."
         );
     }
 

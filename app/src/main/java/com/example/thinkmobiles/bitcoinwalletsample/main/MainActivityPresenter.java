@@ -1305,22 +1305,90 @@ public class MainActivityPresenter
                 final Coin actualFee = request.tx.getFee();
                 final Coin total = coinAmount.add(actualFee);
                 final Coin balanceAfter = w.getBalance().minus(total);
-                final int txSize = request.tx.getMessageSize();
+                final int txSize = request.tx.getVsize();
 
-                final String details =
-                        "Recipient:\n" + recipientAddress
-                                + "\n\nAmount:\n" + coinAmount.toFriendlyString()
-                                + "\n\nFee rate:\n" + feeRateSatPerVkb + " sat/vkB"
-                                + " (" + (feeRateSatPerVkb / 1000.0) + " sat/vB)"
-                                + "\n\nActual fee:\n" + actualFee.toFriendlyString()
-                                + "\n\nTransaction size:\n" + txSize + " vbytes"
-                                + "\n\nTotal:\n" + total.toFriendlyString()
-                                + "\n\nEstimated balance after:\n" + balanceAfter.toFriendlyString();
+                /*
+                 * This is the fee target for the final virtual size.
+                 * It is NOT necessarily the final fee: if bitcoinj would
+                 * create a dust change output, that change is added to the
+                 * fee instead of creating an unusable output.
+                 */
+                final Coin targetFee = Coin.valueOf(
+                        ((long) feeRateSatPerVkb * txSize) / 1000L
+                );
+
+                final long actualFeeSat = actualFee.getValue();
+                final double actualSatPerVb =
+                        txSize == 0
+                                ? 0.0
+                                : actualFeeSat / (double) txSize;
+
+                final Coin extraFee =
+                        actualFee.isGreaterThan(targetFee)
+                                ? actualFee.subtract(targetFee)
+                                : Coin.ZERO;
+
+                final boolean feeAboveTarget =
+                        actualFee.isGreaterThan(targetFee);
+
+                final StringBuilder detailsBuilder =
+                        new StringBuilder();
+
+                detailsBuilder
+                        .append("Recipient:\n")
+                        .append(recipientAddress)
+                        .append("\n\nAmount:\n")
+                        .append(coinAmount.toFriendlyString())
+                        .append("\n\nFee rate (requested):\n")
+                        .append(feeRateSatPerVkb)
+                        .append(" sat/vkB (")
+                        .append(String.format(Locale.US, "%.1f", feeRateSatPerVkb / 1000.0))
+                        .append(" sat/vB)")
+                        .append("\n\nTransaction size:\n")
+                        .append(txSize)
+                        .append(" vbytes")
+                        .append("\n\nFee details\n")
+                        .append("Target fee for this size: ")
+                        .append(targetFee.toFriendlyString())
+                        .append("\nActual fee: ")
+                        .append(actualFee.toFriendlyString())
+                        .append("\nActual fee rate: ")
+                        .append(String.format(Locale.US, "%.2f", actualSatPerVb))
+                        .append(" sat/vB ("
+                                + String.format(Locale.US, "%.0f", actualSatPerVb * 1000.0)
+                                + " sat/vkB)");
+
+                if (feeAboveTarget) {
+                    detailsBuilder
+                            .append("\nExtra fee above target: ")
+                            .append(extraFee.toFriendlyString())
+                            .append("\n\nNote: The selected fee rate is a target. "
+                                    + "bitcoinj can add a small change amount to the fee "
+                                    + "when the change output would be dust. This is why the "
+                                    + "actual fee can be higher than the selected rate.");
+                }
+
+                if (balanceAfter.isZero()) {
+                    detailsBuilder
+                            .append("\n\nWarning: This transaction spends the entire "
+                                    + "available balance.");
+                }
+
+                detailsBuilder
+                        .append("\n\nTotal (amount + fee):\n")
+                        .append(total.toFriendlyString())
+                        .append("\n\nEstimated balance after:\n")
+                        .append(balanceAfter.toFriendlyString());
+
+                final String details = detailsBuilder.toString();
 
                 runOnUi(() -> {
                     view.displaySendDetails(
                             feeRateSatPerVkb + " sat/vkB",
-                            actualFee.toFriendlyString(),
+                            actualFee.toFriendlyString()
+                                    + " ("
+                                    + String.format(Locale.US, "%.2f", actualSatPerVb)
+                                    + " sat/vB)",
                             total.toFriendlyString(),
                             balanceAfter.toFriendlyString()
                     );
