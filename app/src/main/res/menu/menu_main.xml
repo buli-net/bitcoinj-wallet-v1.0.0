@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/menuScanQR_MM"
+        android:title="@string/scan_qr"
+        app:showAsAction="always"
+        android:icon="@drawable/ic_camera_white_24dp"/>
+
+    <item
+        android:id="@+id/menuBackupWallet_MM"
+        android:title="Backup wallet"
+        app:showAsAction="always"
+        android:icon="@drawable/ic_backup_white_24dp"/>
+
+    <item
+        android:id="@+id/menuRestoreWallet_MM"
+        android:title="Restore wallet"
+        app:showAsAction="always"
+        android:icon="@drawable/ic_restore_white_24dp"/>
+
+    <item
+        android:id="@+id/menuInfo_MM"
+        android:title="@string/info"
+        app:showAsAction="always"
+        android:icon="@drawable/ic_info_outline_white_24dp"/>
+
+</menu>
