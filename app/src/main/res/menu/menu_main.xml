@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- Primary actions: Android shows as many as fit and moves the rest into ⋮. -->
+    <item
+        android:id="@+id/menuScanQR_MM"
+        android:title="SCAN"
+        android:icon="@drawable/ic_camera_white_24dp"
+        app:showAsAction="ifRoom|withText" />
+
+    <item
+        android:id="@+id/menuSend_MM"
+        android:title="SEND"
+        android:icon="@drawable/ic_send_white_24dp"
+        app:showAsAction="ifRoom|withText" />
+
+    <item
+        android:id="@+id/menuBackupWallet_MM"
+        android:title="BACKUP"
+        android:icon="@drawable/ic_backup_white_24dp"
+        app:showAsAction="ifRoom|withText" />
+
+    <item
+        android:id="@+id/menuRestoreWallet_MM"
+        android:title="RESTORE"
+        android:icon="@drawable/ic_restore_white_24dp"
+        app:showAsAction="ifRoom|withText" />
+
+    <item
+        android:id="@+id/menuInfo_MM"
+        android:title="INFO"
+        android:icon="@drawable/ic_info_outline_white_24dp"
+        app:showAsAction="ifRoom|withText" />
+
+    <!-- Secondary actions are always hidden until ⋮ is opened. -->
+    <item
+        android:id="@+id/menuUtilities_MM"
+        android:title="Utilities"
+        android:icon="@drawable/ic_settings_black_24dp"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menuSettings_MM"
+        android:title="Settings"
+        android:icon="@drawable/ic_tune_black_24dp"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menuReportIssue_MM"
+        android:title="Report issue"
+        android:icon="@drawable/ic_warning_black_24dp"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menuDonate_MM"
+        android:title="Donate"
+        android:icon="@drawable/ic_favorite_black_24dp"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menuLegacyAddress_MM"
+        android:title="Request to legacy address"
+        android:icon="@drawable/ic_link_black_24dp"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menuHelp_MM"
+        android:title="Help"
+        android:icon="@drawable/ic_help_black_24dp"
+        app:showAsAction="never" />
+</menu>
