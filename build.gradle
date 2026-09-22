@@ -21,3 +21,6 @@ allprojects {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
+
+// Compatibility aliases: allow CI to run './gradlew assembleDebug' from the root project.
+task assembleDebug(dependsOn: ':app:assembleDebug')
