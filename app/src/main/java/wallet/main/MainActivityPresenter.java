@@ -43,6 +43,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MainActivityPresenter
         implements MainActivityContract.MainActivityPresenter {
 
+    private static volatile MainActivityPresenter activePresenter;
+
     private static final String TAG = "BitcoinWalletSync";
 
     /*
@@ -113,6 +115,7 @@ public class MainActivityPresenter
 
         this.view = view;
         this.walletDir = walletDir;
+        activePresenter = this;
 
         this.walletFile =
                 new File(
@@ -1069,6 +1072,10 @@ public class MainActivityPresenter
 
     @Override
     public void unsubscribe() {
+
+        if (activePresenter == this) {
+            activePresenter = null;
+        }
 
         shuttingDown = true;
 
@@ -2070,6 +2077,20 @@ public class MainActivityPresenter
     }
 
 
+
+    public static MainActivityPresenter getActivePresenter() {
+        return activePresenter;
+    }
+
+    public static WalletAppKit getActiveWalletAppKit() {
+        MainActivityPresenter presenter = activePresenter;
+        return presenter == null ? null : presenter.walletAppKit;
+    }
+
+    public static NetworkParameters getActiveParameters() {
+        MainActivityPresenter presenter = activePresenter;
+        return presenter == null ? null : presenter.parameters;
+    }
 
     private void runOnUi(
             Runnable r) {

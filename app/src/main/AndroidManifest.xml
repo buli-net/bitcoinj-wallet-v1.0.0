@@ -20,6 +20,13 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true">
 
+        <activity android:name="wallet.history.SentActivity" android:screenOrientation="portrait" />
+        <activity android:name="wallet.send.SendActivity" android:screenOrientation="portrait" />
+        <activity android:name="wallet.backup.BackupActivity" android:screenOrientation="portrait" />
+        <activity android:name="wallet.backup.RestoreActivity" android:screenOrientation="portrait" />
+        <activity android:name="wallet.about.AboutActivity" android:screenOrientation="portrait" />
+        <activity android:name="wallet.scan.ScanActivity" android:screenOrientation="portrait" />
+
         <activity
             android:name="wallet.main.MainActivity_"
             android:exported="true"
