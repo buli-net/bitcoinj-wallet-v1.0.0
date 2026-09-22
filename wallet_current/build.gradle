@@ -1,0 +1,26 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // ✅ GỮ NGUYÊN AGP 3.6.4: KHỚP DỰ ÁN, CHẠY JDK 8
+        classpath 'com.android.tools.build:gradle:3.6.4'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        // ✅ CHỈ JITPACK NẾU CẦN (QRGEN)
+        maven { url 'https://jitpack.io' }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+
+// Compatibility aliases: allow CI to run './gradlew assembleDebug' from the root project.
+task assembleDebug(dependsOn: ':app:assembleDebug')
