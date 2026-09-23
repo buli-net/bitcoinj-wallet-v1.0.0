@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- Release layout resource for layout_toolbar. Presentation copy is referenced from Android string resources so the English release text has a single source of truth. -->
+<android.support.design.widget.AppBarLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+    <android.support.v7.widget.Toolbar
+        android:id="@+id/toolbar_AT"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="?attr/colorPrimary"
+        android:theme="@style/WalletToolbarTheme"
+        app:popupTheme="@style/WalletOverflowTheme"
+        app:contentInsetStartWithNavigation="0dp"/>
+</android.support.design.widget.AppBarLayout>
