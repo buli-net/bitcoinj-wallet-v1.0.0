@@ -13,22 +13,22 @@
         android:title="SEND"
         android:icon="@drawable/ic_menu_send_24dp"
         app:showAsAction="always|withText"/>
+    <!-- Secondary actions are always hidden until ⋮ is opened. -->
     <item
         android:id="@+id/menuBackupWallet_MM"
         android:title="BACKUP"
         android:icon="@drawable/ic_menu_backup_24dp"
-        app:showAsAction="always|withText"/>
+        app:showAsAction="never"/>
     <item
         android:id="@+id/menuRestoreWallet_MM"
         android:title="RESTORE"
         android:icon="@drawable/ic_menu_restore_24dp"
-        app:showAsAction="always|withText"/>
+        app:showAsAction="never"/>
     <item
         android:id="@+id/menuInfo_MM"
         android:title="INFO"
         android:icon="@drawable/ic_menu_info_24dp"
-        app:showAsAction="always|withText"/>
-    <!-- Secondary actions are always hidden until ⋮ is opened. -->
+        app:showAsAction="never"/>
     <item
         android:id="@+id/menuUtilities_MM"
         android:title="Utilities"
