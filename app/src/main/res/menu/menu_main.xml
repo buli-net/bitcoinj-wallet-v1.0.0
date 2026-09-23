@@ -19,17 +19,13 @@
         android:id="@+id/menuBackupWallet_MM"
         android:title="@string/menu_backup"
         android:icon="@drawable/ic_menu_backup_24dp"
-        app:showAsAction="always|withText"/>
+        app:showAsAction="never"/>
     <item
         android:id="@+id/menuRestoreWallet_MM"
         android:title="@string/menu_restore"
         android:icon="@drawable/ic_menu_restore_24dp"
-        app:showAsAction="always|withText"/>
-    <item
-        android:id="@+id/menuInfo_MM"
-        android:title="@string/menu_info"
-        android:icon="@drawable/ic_menu_info_24dp"
-        app:showAsAction="always|withText"/>
+        app:showAsAction="never"/>
+<!-- -->
     
     <item
         android:id="@+id/menuUtilities_MM"
@@ -60,5 +56,10 @@
         android:id="@+id/menuHelp_MM"
         android:title="@string/menu_help"
         android:icon="@drawable/ic_menu_help_24dp"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/menuInfo_MM"
+        android:title="@string/menu_info"
+        android:icon="@drawable/ic_menu_info_24dp"
         app:showAsAction="never"/>
 </menu>
