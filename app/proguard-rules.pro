@@ -49,26 +49,50 @@
 # AndroidAnnotations
 -keep class **_ { *; }
 
+
+# ============================================================
 # bitcoinj
+# ============================================================
+
+-keep,includedescriptorclasses class org.bitcoinj.wallet.Protos { *; }
 -keep,includedescriptorclasses class org.bitcoinj.wallet.Protos$** { *; }
+
 -keepclassmembers class org.bitcoinj.wallet.Protos {
     com.google.protobuf.Descriptors$FileDescriptor descriptor;
 }
 
+-keep,includedescriptorclasses class org.bitcoin.protocols.payments.Protos { *; }
 -keep,includedescriptorclasses class org.bitcoin.protocols.payments.Protos$** { *; }
+
 -keepclassmembers class org.bitcoin.protocols.payments.Protos {
     com.google.protobuf.Descriptors$FileDescriptor descriptor;
 }
 
 -dontwarn org.bitcoinj.store.LevelDBBlockStore
+-dontwarn org.bitcoinj.store.LevelDBFullPrunedBlockStore**
 -dontnote org.bitcoinj.crypto.DRMWorkaround
 -dontnote org.bitcoinj.crypto.TrustStoreLoader$DefaultTrustStoreLoader
--dontwarn org.bitcoinj.store.LevelDBFullPrunedBlockStore**
 
+
+# ============================================================
 # Bouncy Castle
+# ============================================================
+
 -dontwarn javax.naming.**
 
-# Protobuf
+
+# ============================================================
+# Protobuf / protobuf-javalite
+# ============================================================
+
+-keep,includedescriptorclasses class * extends com.google.protobuf.GeneratedMessageLite {
+    *;
+}
+
+-keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite {
+    *;
+}
+
 -dontnote com.google.protobuf.Android
 -dontnote com.google.protobuf.ExtensionRegistryFactory
 -dontnote com.google.protobuf.ExtensionRegistryLite$ExtensionClassHolder
@@ -86,25 +110,46 @@
 -dontnote com.google.protobuf.SchemaUtil
 -dontnote com.google.protobuf.UnsafeUtil
 
+
+# ============================================================
 # Guava
+# ============================================================
+
 -dontwarn sun.misc.Unsafe
 -dontwarn java.lang.ClassValue
 -dontwarn com.google.errorprone.annotations.**
+
 -dontnote com.google.common.reflect.**
 -dontnote com.google.common.util.concurrent.MoreExecutors
+
 -dontnote com.google.common.hash.Striped64
 -dontnote com.google.common.hash.Striped64$Cell
+
 -dontnote com.google.common.cache.Striped64
 -dontnote com.google.common.cache.Striped64$Cell
+
 -dontnote com.google.common.util.concurrent.AbstractFuture$UnsafeAtomicHelper
+
 -dontnote com.google.common.io.TempFileCreator
 -dontnote com.google.common.io.TempFileCreator$JavaNioCreator
 
+
+# ============================================================
 # ZXing
+# ============================================================
+
 -dontwarn com.google.zxing.**
 
+
+# ============================================================
 # QRGen
+# ============================================================
+
 -dontwarn net.glxn.qrgen.**
 
+
+# ============================================================
 # SLF4J Android
+# ============================================================
+
 -keep class org.slf4j.impl.** { *; }
