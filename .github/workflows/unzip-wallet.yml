@@ -1,9 +1,6 @@
 name: Extract wallet.zip
-  
+
 on:
-  workflow_dispatch:
-    branches:
-      - master
   workflow_dispatch:
 
 permissions:
@@ -22,9 +19,7 @@ jobs:
           set -e
 
           test -f wallet.zip
-
           unzip -o wallet.zip -d .
-
           rm -f wallet.zip
 
       - name: Commit extracted source
