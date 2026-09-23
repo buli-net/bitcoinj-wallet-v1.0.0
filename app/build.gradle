@@ -55,6 +55,7 @@ configurations.all {
 
     resolutionStrategy {
      //   force 'com.google.guava:guava:27.0.1-jre'
+        force 'com.google.guava:guava:33.4.0-android'
         force 'org.slf4j:slf4j-api:1.7.36'
     }
 }
