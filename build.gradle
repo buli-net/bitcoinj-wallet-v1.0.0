@@ -4,7 +4,8 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // ✅ GỮ NGUYÊN AGP 3.6.4: KHỚP DỰ ÁN, CHẠY JDK 8
+        // Release documentation: the project remains on the Android Gradle Plugin version
+        // selected by the application baseline and compiled with Java 8 compatibility.
         classpath 'com.android.tools.build:gradle:3.6.4'
     }
 }
@@ -13,7 +14,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // ✅ CHỈ JITPACK NẾU CẦN (QRGEN)
+        // Release dependency source used by the QR generation library.
         maven { url 'https://jitpack.io' }
     }
 }
@@ -22,5 +23,5 @@ task clean(type: Delete) {
     delete rootProject.buildDir
 }
 
-// Compatibility aliases: allow CI to run './gradlew assembleDebug' from the root project.
+// Release build convenience task: exposes the application debug build from the root project.
 task assembleDebug(dependsOn: ':app:assembleDebug')
