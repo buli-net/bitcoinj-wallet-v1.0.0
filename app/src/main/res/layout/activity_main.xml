@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <android.support.v7.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="?attr/colorPrimary"
+            android:theme="@style/WalletToolbarTheme"
+            app:popupTheme="@style/WalletOverflowTheme"
+            android:elevation="4dp" />
+
+        <android.support.v4.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefresh"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="80dp"
+                        android:background="@drawable/bg_blue_card"
+                        android:gravity="center_vertical"
+                        android:padding="12dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/total_balance"
+                                android:textColor="?android:attr/textColorPrimaryInverse"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:id="@+id/balanceText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="@string/zero_btc"
+                                android:textColor="?android:attr/textColorPrimaryInverse"
+                                android:textSize="24sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:id="@+id/receiveQr"
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            android:background="@android:color/white"
+                            android:clickable="true"
+                            android:contentDescription="@string/receive_qr_title"
+                            android:focusable="true"
+                            android:padding="2dp"
+                            android:scaleType="fitCenter" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/bg_card"
+                        android:gravity="center_vertical"
+                        android:padding="14dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/my_address"
+                                android:textColor="?android:attr/textColorSecondary"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:id="@+id/addressText"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:maxLines="2"
+                                android:text="@string/loading"
+                                android:textColor="?android:attr/textColorPrimary"
+                                android:textIsSelectable="true"
+                                android:textSize="13sp" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:id="@+id/copyAddress"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:clickable="true"
+                            android:contentDescription="@string/copy_address"
+                            android:focusable="true"
+                            android:padding="8dp"
+                            android:src="@drawable/ic_content_copy_18dp"
+                            android:tint="?attr/colorControlNormal" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/bg_card"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/recent_transactions"
+                                android:textColor="?android:attr/textColorPrimary"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/viewAllTransactions"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="?attr/selectableItemBackgroundBorderless"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:padding="6dp"
+                                android:text="@string/view_all"
+                                android:textColor="?attr/colorAccent"
+                                android:textSize="14sp" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/recentEmpty"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:paddingTop="12dp"
+                            android:text="@string/no_transactions_yet"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:textSize="14sp" />
+
+                        <android.support.v7.widget.RecyclerView
+                            android:id="@+id/recentTransactions"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:minHeight="72dp"
+                            android:nestedScrollingEnabled="false"
+                            android:overScrollMode="never" />
+                    </LinearLayout>
+                </LinearLayout>
+            </ScrollView>
+        </android.support.v4.widget.SwipeRefreshLayout>
+    </LinearLayout>
+
+    <include layout="@layout/layout_download_peers" />
+</FrameLayout>
