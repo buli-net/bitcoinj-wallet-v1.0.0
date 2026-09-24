@@ -1,10 +1,3 @@
-/**
- * Release documentation:
- * Release documentation for the main wallet Activity.
- * Owns the primary wallet screen, toolbar actions, system-theme presentation, QR entry, backup export, and view binding.
- * The Activity can be recreated by Android without creating a second wallet presenter or WalletAppKit instance.
- */
-
 package wallet.main;
 
 import android.content.ClipData;
@@ -20,6 +13,7 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.view.menu.MenuBuilder;
 import android.support.v7.app.AppCompatActivity;
 import android.view.ContextThemeWrapper;
+import android.view.Gravity;
 import android.support.v7.widget.Toolbar;
 import android.text.Html;
 import android.text.TextUtils;
@@ -36,13 +30,15 @@ import android.widget.Toast;
 
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
+
 import org.androidannotations.annotations.AfterInject;
 import org.androidannotations.annotations.AfterViews;
 import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.UiThread;
-import net.glxn.qrgen.android.QRCode;
 import org.androidannotations.annotations.ViewById;
 import org.androidannotations.annotations.res.StringRes;
+
+import net.glxn.qrgen.android.QRCode;
 
 import java.io.File;
 
@@ -55,16 +51,35 @@ public class MainActivity extends AppCompatActivity
 
     private MainActivityContract.MainActivityPresenter presenter;
 
-    @ViewById protected FrameLayout flDownloadContent_LDP;
-    @ViewById protected ProgressBar pbProgress_LDP;
-    @ViewById protected TextView tvPercentage_LDP;
-    @ViewById protected Toolbar toolbar_AT;
-    @ViewById protected SwipeRefreshLayout srlContent_AM;
-    @ViewById protected TextView tvMyBalance_AM;
-    @ViewById protected TextView tvMyAddress_AM;
-    @ViewById protected ImageView ivCopy_AM;
-    @ViewById protected ImageView ivReceiveQr_AM;
-    @ViewById protected LinearLayout llRecentTransactions_AM;
+    @ViewById
+    protected FrameLayout flDownloadContent_LDP;
+
+    @ViewById
+    protected ProgressBar pbProgress_LDP;
+
+    @ViewById
+    protected TextView tvPercentage_LDP;
+
+    @ViewById
+    protected Toolbar toolbar_AT;
+
+    @ViewById
+    protected SwipeRefreshLayout srlContent_AM;
+
+    @ViewById
+    protected TextView tvMyBalance_AM;
+
+    @ViewById
+    protected TextView tvMyAddress_AM;
+
+    @ViewById
+    protected ImageView ivCopy_AM;
+
+    @ViewById
+    protected ImageView ivReceiveQr_AM;
+
+    @ViewById
+    protected LinearLayout llRecentTransactions_AM;
 
     @StringRes(R.string.about_text)
     protected String strAbout;
@@ -87,21 +102,30 @@ public class MainActivity extends AppCompatActivity
     @AfterViews
     protected void initUI() {
         setSupportActionBar(toolbar_AT);
+
         if (getSupportActionBar() != null) {
             getSupportActionBar().setTitle(R.string.wallet_title);
         }
 
         findViewById(R.id.tvViewAllTransactions).setOnClickListener(v ->
-                startActivity(new Intent(this, wallet.history.SentActivity.class)));
+                startActivity(
+                        new Intent(
+                                this,
+                                wallet.history.SentActivity.class)));
 
         srlContent_AM.setOnRefreshListener(() -> {
-            if (presenter != null) presenter.refresh();
+            if (presenter != null) {
+                presenter.refresh();
+            }
         });
 
         ivCopy_AM.setOnClickListener(v -> copyAddress());
+
         ivReceiveQr_AM.setOnClickListener(v -> showReceiveQr());
 
-        if (presenter != null) presenter.subscribe();
+        if (presenter != null) {
+            presenter.subscribe();
+        }
     }
 
     @Override
@@ -122,11 +146,17 @@ public class MainActivity extends AppCompatActivity
         }
 
         MenuBuilder menuBuilder = (MenuBuilder) menu;
-        ColorStateList toolbarIconColor = resolveTextColor(toolbar_AT.getContext());
-        Context popupContext = new ContextThemeWrapper(
-                toolbar_AT.getContext(),
-                toolbar_AT.getPopupTheme());
-        ColorStateList popupIconColor = resolveTextColor(popupContext);
+
+        ColorStateList toolbarIconColor =
+                resolveTextColor(toolbar_AT.getContext());
+
+        Context popupContext =
+                new ContextThemeWrapper(
+                        toolbar_AT.getContext(),
+                        toolbar_AT.getPopupTheme());
+
+        ColorStateList popupIconColor =
+                resolveTextColor(popupContext);
 
         for (MenuItem item : menuBuilder.getActionItems()) {
             tintMenuItemIcon(item, toolbarIconColor);
@@ -138,26 +168,40 @@ public class MainActivity extends AppCompatActivity
     }
 
     private ColorStateList resolveTextColor(Context context) {
-        android.util.TypedValue value = new android.util.TypedValue();
+        android.util.TypedValue value =
+                new android.util.TypedValue();
+
         if (!context.getTheme().resolveAttribute(
-                android.R.attr.textColorPrimary, value, true)) {
+                android.R.attr.textColorPrimary,
+                value,
+                true)) {
             return null;
         }
 
         if (value.resourceId != 0) {
             return context.getResources().getColorStateList(
-                    value.resourceId, context.getTheme());
+                    value.resourceId,
+                    context.getTheme());
         }
 
         return ColorStateList.valueOf(value.data);
     }
 
-    private void tintMenuItemIcon(MenuItem item, ColorStateList color) {
-        if (item == null || item.getIcon() == null || color == null) {
+    private void tintMenuItemIcon(
+            MenuItem item,
+            ColorStateList color) {
+
+        if (item == null ||
+                item.getIcon() == null ||
+                color == null) {
             return;
         }
 
-        Drawable icon = DrawableCompat.wrap(item.getIcon()).mutate();
+        Drawable icon =
+                DrawableCompat
+                        .wrap(item.getIcon())
+                        .mutate();
+
         DrawableCompat.setTintList(icon, color);
         item.setIcon(icon);
     }
@@ -165,112 +209,254 @@ public class MainActivity extends AppCompatActivity
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
+
             case R.id.menuScanQR_MM:
                 openScanner();
                 return true;
+
             case R.id.menuSend_MM:
-                startActivity(new Intent(this, wallet.send.SendActivity.class));
+                startActivity(
+                        new Intent(
+                                this,
+                                wallet.send.SendActivity.class));
                 return true;
+
             case R.id.menuInfo_MM:
-                startActivity(new Intent(this, wallet.about.AboutActivity.class));
+                startActivity(
+                        new Intent(
+                                this,
+                                wallet.about.AboutActivity.class));
                 return true;
+
             case R.id.menuBackupWallet_MM:
-                startActivity(new Intent(this, wallet.backup.BackupActivity.class));
+                startActivity(
+                        new Intent(
+                                this,
+                                wallet.backup.BackupActivity.class));
                 return true;
+
             case R.id.menuRestoreWallet_MM:
-                startActivity(new Intent(this, wallet.backup.RestoreActivity.class));
+                startActivity(
+                        new Intent(
+                                this,
+                                wallet.backup.RestoreActivity.class));
                 return true;
+
             case R.id.menuUtilities_MM:
-                showToastMessage(getString(R.string.utilities_unavailable));
+                showToastMessage(
+                        getString(
+                                R.string.utilities_unavailable));
                 return true;
+
             case R.id.menuSettings_MM:
-                showToastMessage(getString(R.string.settings_unavailable));
+                showToastMessage(
+                        getString(
+                                R.string.settings_unavailable));
                 return true;
+
             case R.id.menuReportIssue_MM:
-                showToastMessage(getString(R.string.report_issue_unavailable));
+                showToastMessage(
+                        getString(
+                                R.string.report_issue_unavailable));
                 return true;
+
             case R.id.menuDonate_MM:
-                showToastMessage(getString(R.string.donate_unavailable));
+                showToastMessage(
+                        getString(
+                                R.string.donate_unavailable));
                 return true;
+
             case R.id.menuLegacyAddress_MM:
-                showToastMessage(getString(R.string.legacy_address_unavailable));
+                showToastMessage(
+                        getString(
+                                R.string.legacy_address_unavailable));
                 return true;
+
             case R.id.menuHelp_MM:
                 showAbout();
                 return true;
+
             default:
                 return super.onOptionsItemSelected(item);
         }
     }
 
     private void openScanner() {
-        new IntentIntegrator(this).setPrompt(getString(R.string.scan_bitcoin_address))
+        new IntentIntegrator(this)
+                .setPrompt(
+                        getString(
+                                R.string.scan_bitcoin_address))
                 .initiateScan();
     }
 
     private void copyAddress() {
-        String address = tvMyAddress_AM.getText().toString().trim();
+        String address =
+                tvMyAddress_AM
+                        .getText()
+                        .toString()
+                        .trim();
+
         if (TextUtils.isEmpty(address)) {
-            showToastMessage(getString(R.string.wallet_address_missing));
+            showToastMessage(
+                    getString(
+                            R.string.wallet_address_missing));
             return;
         }
-        ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-        cm.setPrimaryClip(ClipData.newPlainText(getString(R.string.bitcoin_address_clip_label), address));
-        showToastMessage(getString(R.string.address_copied));
+
+        ClipboardManager cm =
+                (ClipboardManager)
+                        getSystemService(
+                                CLIPBOARD_SERVICE);
+
+        cm.setPrimaryClip(
+                ClipData.newPlainText(
+                        getString(
+                                R.string.bitcoin_address_clip_label),
+                        address));
+
+        showToastMessage(
+                getString(
+                        R.string.address_copied));
     }
 
     private void showReceiveQr() {
-        final String address = tvMyAddress_AM.getText().toString().trim();
-        if (TextUtils.isEmpty(address) || address.equals(getString(R.string.loading))) {
-            showToastMessage(getString(R.string.wallet_address_missing));
+        final String address =
+                tvMyAddress_AM
+                        .getText()
+                        .toString()
+                        .trim();
+
+        if (TextUtils.isEmpty(address) ||
+                address.equals(
+                        getString(R.string.loading))) {
+
+            showToastMessage(
+                    getString(
+                            R.string.wallet_address_missing));
             return;
         }
 
         try {
-            Bitmap qr = QRCode.from(address).withSize(800, 800).bitmap();
-            ImageView image = new ImageView(this);
-            image.setImageBitmap(qr);
-            image.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            image.setBackgroundColor(android.graphics.Color.WHITE);
-            int padding = (int) (8 * getResources().getDisplayMetrics().density);
-            image.setPadding(padding, padding, padding, padding);
+            Bitmap qr =
+                    QRCode.from(address)
+                            .withSize(800, 800)
+                            .bitmap();
 
-            int size = (int) (300 * getResources().getDisplayMetrics().density);
-            LinearLayout container = new LinearLayout(this);
-            container.setPadding(padding, padding, padding, padding);
-            container.addView(image, new LinearLayout.LayoutParams(size, size));
+            ImageView image =
+                    new ImageView(this);
+
+            image.setImageBitmap(qr);
+            image.setScaleType(
+                    ImageView.ScaleType.FIT_CENTER);
+            image.setBackgroundColor(
+                    android.graphics.Color.WHITE);
+
+            int padding =
+                    (int) (
+                            8 *
+                            getResources()
+                                    .getDisplayMetrics()
+                                    .density);
+
+            image.setPadding(
+                    padding,
+                    padding,
+                    padding,
+                    padding);
+
+            int size =
+                    (int) (
+                            300 *
+                            getResources()
+                                    .getDisplayMetrics()
+                                    .density);
+
+            /*
+             * Container chiếm toàn bộ vùng dialog
+             * và căn QR chính xác vào giữa.
+             */
+            LinearLayout container =
+                    new LinearLayout(this);
+
+            container.setOrientation(
+                    LinearLayout.VERTICAL);
+
+            container.setGravity(
+                    Gravity.CENTER);
+
+            container.setPadding(
+                    padding,
+                    padding,
+                    padding,
+                    padding);
+
+            LinearLayout.LayoutParams qrParams =
+                    new LinearLayout.LayoutParams(
+                            size,
+                            size);
+
+            qrParams.gravity =
+                    Gravity.CENTER;
+
+            container.addView(
+                    image,
+                    qrParams);
 
             new AlertDialog.Builder(this)
-                    .setTitle(R.string.receive_qr_title)
+                    .setTitle(
+                            R.string.receive_qr_title)
                     .setView(container)
-                    .setPositiveButton(R.string.got_it, null)
+                    .setPositiveButton(
+                            R.string.got_it,
+                            null)
                     .show();
+
         } catch (Exception error) {
-            showToastMessage(getString(R.string.wallet_address_missing));
+            showToastMessage(
+                    getString(
+                            R.string.wallet_address_missing));
         }
     }
 
     private void showAbout() {
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(R.string.about_title)
-                .setMessage(Html.fromHtml(strAbout))
-                .setPositiveButton(R.string.got_it, null)
-                .create();
+        AlertDialog dialog =
+                new AlertDialog.Builder(this)
+                        .setTitle(
+                                R.string.about_title)
+                        .setMessage(
+                                Html.fromHtml(strAbout))
+                        .setPositiveButton(
+                                R.string.got_it,
+                                null)
+                        .create();
+
         dialog.show();
-        TextView msg = dialog.findViewById(android.R.id.message);
-        if (msg != null) msg.setMovementMethod(LinkMovementMethod.getInstance());
+
+        TextView msg =
+                dialog.findViewById(
+                        android.R.id.message);
+
+        if (msg != null) {
+            msg.setMovementMethod(
+                    LinkMovementMethod.getInstance());
+        }
     }
 
     @Override
-    public void setPresenter(MainActivityContract.MainActivityPresenter presenter) {
+    public void setPresenter(
+            MainActivityContract.MainActivityPresenter presenter) {
         this.presenter = presenter;
     }
 
     @Override
     @UiThread
     public void displayDownloadContent(boolean shown) {
-        if (flDownloadContent_LDP != null)
-            flDownloadContent_LDP.setVisibility(shown ? View.VISIBLE : View.GONE);
+        if (flDownloadContent_LDP != null) {
+            flDownloadContent_LDP.setVisibility(
+                    shown
+                            ? View.VISIBLE
+                            : View.GONE);
+        }
     }
 
     @Override
@@ -285,7 +471,12 @@ public class MainActivity extends AppCompatActivity
     @Override
     @UiThread
     public void displayPercentage(int percent) {
-        if (tvPercentage_LDP != null) tvPercentage_LDP.setText(getString(R.string.percentage_display, percent));
+        if (tvPercentage_LDP != null) {
+            tvPercentage_LDP.setText(
+                    getString(
+                            R.string.percentage_display,
+                            percent));
+        }
     }
 
     @Override
@@ -297,17 +488,35 @@ public class MainActivity extends AppCompatActivity
     @Override
     @UiThread
     public void displayMyAddress(String address) {
-        if (TextUtils.isEmpty(address)) return;
+        if (TextUtils.isEmpty(address)) {
+            return;
+        }
+
         tvMyAddress_AM.setText(address);
+
         updateReceiveQr(address);
-        if (srlContent_AM != null && srlContent_AM.isRefreshing()) srlContent_AM.setRefreshing(false);
+
+        if (srlContent_AM != null &&
+                srlContent_AM.isRefreshing()) {
+
+            srlContent_AM.setRefreshing(false);
+        }
     }
 
-    private void updateReceiveQr(final String address) {
+    private void updateReceiveQr(
+            final String address) {
+
         new Thread(() -> {
             try {
-                final Bitmap qr = QRCode.from(address).withSize(300, 300).bitmap();
-                runOnUiThread(() -> ivReceiveQr_AM.setImageBitmap(qr));
+                final Bitmap qr =
+                        QRCode.from(address)
+                                .withSize(300, 300)
+                                .bitmap();
+
+                runOnUiThread(() ->
+                        ivReceiveQr_AM
+                                .setImageBitmap(qr));
+
             } catch (Exception ignored) {
             }
         }, "receive-qr-generator").start();
@@ -317,39 +526,86 @@ public class MainActivity extends AppCompatActivity
     @UiThread
     public void displayTransactionHistory(
             java.util.List<TransactionDisplayItem> historyItems) {
-        if (llRecentTransactions_AM == null) return;
+
+        if (llRecentTransactions_AM == null) {
+            return;
+        }
 
         llRecentTransactions_AM.removeAllViews();
 
-        if (historyItems == null || historyItems.isEmpty()) {
-            TextView empty = new TextView(this);
-            empty.setText(R.string.no_transactions_yet);
+        if (historyItems == null ||
+                historyItems.isEmpty()) {
+
+            TextView empty =
+                    new TextView(this);
+
+            empty.setText(
+                    R.string.no_transactions_yet);
+
             empty.setTextSize(13);
-            empty.setTextColor(ThemeTextColors.primary(this));
-            empty.setPadding(0, 10, 0, 10);
+
+            empty.setTextColor(
+                    ThemeTextColors.primary(this));
+
+            empty.setPadding(
+                    0,
+                    10,
+                    0,
+                    10);
+
             llRecentTransactions_AM.addView(empty);
             return;
         }
 
-        int count = Math.min(3, historyItems.size());
-        int contentColor = ThemeTextColors.primary(this);
-        int dividerColor = ThemeTextColors.divider(this);
+        int count =
+                Math.min(
+                        3,
+                        historyItems.size());
+
+        int contentColor =
+                ThemeTextColors.primary(this);
+
+        int dividerColor =
+                ThemeTextColors.divider(this);
 
         for (int i = 0; i < count; i++) {
-            TransactionDisplayItem item = historyItems.get(i);
 
-            LinearLayout transaction = new LinearLayout(this);
-            transaction.setOrientation(LinearLayout.VERTICAL);
-            transaction.setPadding(0, 10, 0, 10);
+            TransactionDisplayItem item =
+                    historyItems.get(i);
 
-            TextView index = new TextView(this);
-            index.setText(getString(R.string.transaction_index, item.getIndex()));
+            LinearLayout transaction =
+                    new LinearLayout(this);
+
+            transaction.setOrientation(
+                    LinearLayout.VERTICAL);
+
+            transaction.setPadding(
+                    0,
+                    10,
+                    0,
+                    10);
+
+            TextView index =
+                    new TextView(this);
+
+            index.setText(
+                    getString(
+                            R.string.transaction_index,
+                            item.getIndex()));
+
             index.setTextSize(12);
+
             index.setTextColor(contentColor);
-            index.setTypeface(null, android.graphics.Typeface.NORMAL);
+
+            index.setTypeface(
+                    null,
+                    android.graphics.Typeface.NORMAL);
+
             transaction.addView(index);
 
-            TextView summary = new TextView(this);
+            TextView summary =
+                    new TextView(this);
+
             android.text.SpannableString summaryText =
                     new android.text.SpannableString(
                             getString(
@@ -358,68 +614,129 @@ public class MainActivity extends AppCompatActivity
                                     item.getAmount()));
 
             int typeStart = 0;
-            int typeEnd = item.getTypeLabel().length();
-            int amountStart = summaryText.length() - item.getAmount().length();
-            int amountEnd = summaryText.length();
+
+            int typeEnd =
+                    item.getTypeLabel().length();
+
+            int amountStart =
+                    summaryText.length()
+                            - item.getAmount().length();
+
+            int amountEnd =
+                    summaryText.length();
 
             summaryText.setSpan(
                     new android.text.style.StyleSpan(
                             android.graphics.Typeface.BOLD),
                     typeStart,
                     typeEnd,
-                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    android.text.Spanned
+                            .SPAN_EXCLUSIVE_EXCLUSIVE);
+
             summaryText.setSpan(
                     new android.text.style.StyleSpan(
                             android.graphics.Typeface.BOLD),
                     amountStart,
                     amountEnd,
-                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    android.text.Spanned
+                            .SPAN_EXCLUSIVE_EXCLUSIVE);
 
             summary.setText(summaryText);
+
             summary.setTextSize(13);
+
             summary.setTextColor(contentColor);
-            summary.setTypeface(null, android.graphics.Typeface.NORMAL);
-            summary.setPadding(0, 2, 0, 0);
+
+            summary.setTypeface(
+                    null,
+                    android.graphics.Typeface.NORMAL);
+
+            summary.setPadding(
+                    0,
+                    2,
+                    0,
+                    0);
+
             transaction.addView(summary);
 
-            TextView dateStatus = new TextView(this);
+            TextView dateStatus =
+                    new TextView(this);
+
             dateStatus.setText(
                     getString(
                             R.string.transaction_date_status,
                             item.getDate(),
                             item.getStatus()));
+
             dateStatus.setTextSize(12);
+
             dateStatus.setTextColor(contentColor);
-            dateStatus.setTypeface(null, android.graphics.Typeface.NORMAL);
-            dateStatus.setPadding(0, 4, 0, 0);
+
+            dateStatus.setTypeface(
+                    null,
+                    android.graphics.Typeface.NORMAL);
+
+            dateStatus.setPadding(
+                    0,
+                    4,
+                    0,
+                    0);
+
             transaction.addView(dateStatus);
 
-            TextView txId = new TextView(this);
-            txId.setText(getString(R.string.transaction_tx_id, item.getTransactionId()));
+            TextView txId =
+                    new TextView(this);
+
+            txId.setText(
+                    getString(
+                            R.string.transaction_tx_id,
+                            item.getTransactionId()));
+
             txId.setTextSize(12);
+
             txId.setTextColor(contentColor);
-            txId.setTypeface(null, android.graphics.Typeface.NORMAL);
-            txId.setPadding(0, 4, 0, 0);
+
+            txId.setTypeface(
+                    null,
+                    android.graphics.Typeface.NORMAL);
+
+            txId.setPadding(
+                    0,
+                    4,
+                    0,
+                    0);
+
             transaction.addView(txId);
 
-            llRecentTransactions_AM.addView(transaction);
+            llRecentTransactions_AM.addView(
+                    transaction);
 
             if (i + 1 < count) {
-                View line = new View(this);
-                line.setBackgroundColor(dividerColor);
+
+                View line =
+                        new View(this);
+
+                line.setBackgroundColor(
+                        dividerColor);
+
                 LinearLayout.LayoutParams params =
                         new LinearLayout.LayoutParams(
                                 LinearLayout.LayoutParams.MATCH_PARENT,
                                 1);
-                llRecentTransactions_AM.addView(line, params);
+
+                llRecentTransactions_AM.addView(
+                        line,
+                        params);
             }
         }
     }
 
     @Override
-    public void showToastMessage(String message) {
+    public void showToastMessage(
+            String message) {
         showToast(message);
     }
+
     @Override
     public android.content.Context getActivityContext() {
         return this;
@@ -430,7 +747,11 @@ public class MainActivity extends AppCompatActivity
             int requestCode,
             int resultCode,
             Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
+
+        super.onActivityResult(
+                requestCode,
+                resultCode,
+                data);
 
         IntentResult result =
                 IntentIntegrator.parseActivityResult(
@@ -439,12 +760,18 @@ public class MainActivity extends AppCompatActivity
                         data);
 
         if (result != null &&
-                !TextUtils.isEmpty(result.getContents())) {
+                !TextUtils.isEmpty(
+                        result.getContents())) {
+
             Intent send =
-                    new Intent(this, wallet.send.SendActivity.class);
+                    new Intent(
+                            this,
+                            wallet.send.SendActivity.class);
+
             send.putExtra(
                     wallet.send.SendActivity.EXTRA_RECIPIENT,
                     result.getContents());
+
             startActivity(send);
         }
     }
@@ -453,58 +780,96 @@ public class MainActivity extends AppCompatActivity
         File oldWallet =
                 new File(
                         getCacheDir(),
-                        Constants.WALLET_NAME + ".wallet");
+                        Constants.WALLET_NAME
+                                + ".wallet");
+
         File newWallet =
                 new File(
                         getFilesDir(),
-                        Constants.WALLET_NAME + ".wallet");
+                        Constants.WALLET_NAME
+                                + ".wallet");
 
-        if (newWallet.exists() || !oldWallet.exists()) {
+        if (newWallet.exists() ||
+                !oldWallet.exists()) {
             return;
         }
 
         try {
-            copyFile(oldWallet, newWallet);
+            copyFile(
+                    oldWallet,
+                    newWallet);
 
             File oldChain =
                     new File(
                             getCacheDir(),
-                            Constants.WALLET_NAME + ".spvchain");
+                            Constants.WALLET_NAME
+                                    + ".spvchain");
+
             File newChain =
                     new File(
                             getFilesDir(),
-                            Constants.WALLET_NAME + ".spvchain");
+                            Constants.WALLET_NAME
+                                    + ".spvchain");
 
-            if (oldChain.exists() && !newChain.exists()) {
-                copyFile(oldChain, newChain);
+            if (oldChain.exists() &&
+                    !newChain.exists()) {
+
+                copyFile(
+                        oldChain,
+                        newChain);
             }
+
         } catch (Exception ignored) {
             // Preserve the existing wallet if cache migration cannot complete.
         }
     }
 
-    private static void copyFile(File source, File destination)
+    private static void copyFile(
+            File source,
+            File destination)
             throws Exception {
+
         try (java.io.InputStream input =
                      new java.io.FileInputStream(source);
+
              java.io.OutputStream output =
                      new java.io.FileOutputStream(destination)) {
 
-            byte[] buffer = new byte[8192];
+            byte[] buffer =
+                    new byte[8192];
+
             int count;
 
-            while ((count = input.read(buffer)) != -1) {
-                output.write(buffer, 0, count);
+            while ((count =
+                    input.read(buffer)) != -1) {
+
+                output.write(
+                        buffer,
+                        0,
+                        count);
             }
         }
     }
 
-    private void showToast(String message) {
-        runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
+    private void showToast(
+            String message) {
+
+        runOnUiThread(() ->
+                Toast.makeText(
+                        this,
+                        message,
+                        Toast.LENGTH_SHORT)
+                        .show());
     }
 
-    @Override protected void onDestroy() {
+    @Override
+    protected void onDestroy() {
         super.onDestroy();
-        if (isFinishing() && presenter != null) presenter.unsubscribe();
+
+        if (isFinishing() &&
+                presenter != null) {
+
+            presenter.unsubscribe();
+        }
     }
 }
