@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?android:attr/colorBackground">
+    <android.support.v7.widget.Toolbar
+        android:id="@+id/toolbar_transactions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorPrimary"
+        android:theme="@style/WalletToolbarTheme"
+            app:popupTheme="@style/WalletOverflowTheme"/>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_margin="12dp"
+        android:background="@drawable/bg_card"
+        android:padding="4dp">
+        <Button
+            android:id="@+id/tabAll"
+            style="@style/TabButton"
+            android:text="@string/filter_all"/>
+        <Button
+            android:id="@+id/tabSent"
+            style="@style/TabButton"
+            android:text="@string/filter_sent"/>
+        <Button
+            android:id="@+id/tabReceived"
+            style="@style/TabButton"
+            android:text="@string/filter_received"/>
+    </LinearLayout>
+    <TextView
+        android:id="@+id/tvEmptyTransactions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:padding="24dp"
+        android:text="@string/no_transactions_yet"
+        android:visibility="gone"/>
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/recyclerTransactions"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"/>
+</LinearLayout>
