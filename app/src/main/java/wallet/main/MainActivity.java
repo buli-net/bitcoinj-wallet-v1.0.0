@@ -2,22 +2,23 @@ package wallet.main;
 
 import android.content.ClipData;
 import android.content.ClipboardManager;
-import android.content.Intent;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.support.v4.graphics.drawable.DrawableCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AlertDialog;
-import android.support.v7.view.menu.MenuBuilder;
 import android.support.v7.app.AppCompatActivity;
-import android.view.ContextThemeWrapper;
-import android.view.Gravity;
+import android.support.v7.view.menu.MenuBuilder;
 import android.support.v7.widget.Toolbar;
 import android.text.Html;
 import android.text.TextUtils;
 import android.text.method.LinkMovementMethod;
+import android.view.ContextThemeWrapper;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -31,14 +32,15 @@ import android.widget.Toast;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 
+import net.glxn.qrgen.android.QRCode;
+
 import org.androidannotations.annotations.AfterInject;
 import org.androidannotations.annotations.AfterViews;
+import org.androidannotations.annotations.Click;
 import org.androidannotations.annotations.EActivity;
 import org.androidannotations.annotations.UiThread;
 import org.androidannotations.annotations.ViewById;
 import org.androidannotations.annotations.res.StringRes;
-
-import net.glxn.qrgen.android.QRCode;
 
 import java.io.File;
 
@@ -244,32 +246,27 @@ public class MainActivity extends AppCompatActivity
 
             case R.id.menuUtilities_MM:
                 showToastMessage(
-                        getString(
-                                R.string.utilities_unavailable));
+                        getString(R.string.utilities_unavailable));
                 return true;
 
             case R.id.menuSettings_MM:
                 showToastMessage(
-                        getString(
-                                R.string.settings_unavailable));
+                        getString(R.string.settings_unavailable));
                 return true;
 
             case R.id.menuReportIssue_MM:
                 showToastMessage(
-                        getString(
-                                R.string.report_issue_unavailable));
+                        getString(R.string.report_issue_unavailable));
                 return true;
 
             case R.id.menuDonate_MM:
                 showToastMessage(
-                        getString(
-                                R.string.donate_unavailable));
+                        getString(R.string.donate_unavailable));
                 return true;
 
             case R.id.menuLegacyAddress_MM:
                 showToastMessage(
-                        getString(
-                                R.string.legacy_address_unavailable));
+                        getString(R.string.legacy_address_unavailable));
                 return true;
 
             case R.id.menuHelp_MM:
@@ -283,60 +280,65 @@ public class MainActivity extends AppCompatActivity
 
     private void openScanner() {
         new IntentIntegrator(this)
-                .setPrompt(
-                        getString(
-                                R.string.scan_bitcoin_address))
+                .setPrompt(getString(R.string.scan_bitcoin_address))
                 .initiateScan();
     }
 
     private void copyAddress() {
         String address =
-                tvMyAddress_AM
-                        .getText()
+                tvMyAddress_AM.getText()
                         .toString()
                         .trim();
 
         if (TextUtils.isEmpty(address)) {
             showToastMessage(
-                    getString(
-                            R.string.wallet_address_missing));
+                    getString(R.string.wallet_address_missing));
             return;
         }
 
-        ClipboardManager cm =
+        ClipboardManager clipboard =
                 (ClipboardManager)
-                        getSystemService(
-                                CLIPBOARD_SERVICE);
+                        getSystemService(CLIPBOARD_SERVICE);
 
-        cm.setPrimaryClip(
+        clipboard.setPrimaryClip(
                 ClipData.newPlainText(
                         getString(
                                 R.string.bitcoin_address_clip_label),
                         address));
 
         showToastMessage(
-                getString(
-                        R.string.address_copied));
+                getString(R.string.address_copied));
     }
 
+    /**
+     * Opens the real wallet address as a large QR code.
+     *
+     * The QR is generated directly from the current wallet
+     * address displayed on the main wallet screen.
+     */
     private void showReceiveQr() {
         final String address =
-                tvMyAddress_AM
-                        .getText()
+                tvMyAddress_AM.getText()
                         .toString()
                         .trim();
 
         if (TextUtils.isEmpty(address) ||
-                address.equals(
-                        getString(R.string.loading))) {
+                address.equals(getString(R.string.loading))) {
 
             showToastMessage(
-                    getString(
-                            R.string.wallet_address_missing));
+                    getString(R.string.wallet_address_missing));
             return;
         }
 
         try {
+            int density =
+                    (int) getResources()
+                            .getDisplayMetrics()
+                            .density;
+
+            int padding = 8 * density;
+            int qrSize = 300 * density;
+
             Bitmap qr =
                     QRCode.from(address)
                             .withSize(800, 800)
@@ -348,63 +350,35 @@ public class MainActivity extends AppCompatActivity
             image.setImageBitmap(qr);
             image.setScaleType(
                     ImageView.ScaleType.FIT_CENTER);
-            image.setBackgroundColor(
-                    android.graphics.Color.WHITE);
-
-            int padding =
-                    (int) (
-                            8 *
-                            getResources()
-                                    .getDisplayMetrics()
-                                    .density);
-
+            image.setBackgroundColor(Color.WHITE);
             image.setPadding(
                     padding,
                     padding,
                     padding,
                     padding);
 
-            int size =
-                    (int) (
-                            300 *
-                            getResources()
-                                    .getDisplayMetrics()
-                                    .density);
+            FrameLayout container =
+                    new FrameLayout(this);
 
-            /*
-             * Container chiếm toàn bộ vùng dialog
-             * và căn QR chính xác vào giữa.
-             */
-            LinearLayout container =
-                    new LinearLayout(this);
-
-            container.setOrientation(
-                    LinearLayout.VERTICAL);
-
-            container.setGravity(
-                    Gravity.CENTER);
-
+            container.setGravity(Gravity.CENTER);
             container.setPadding(
                     padding,
                     padding,
                     padding,
                     padding);
 
-            LinearLayout.LayoutParams qrParams =
-                    new LinearLayout.LayoutParams(
-                            size,
-                            size);
-
-            qrParams.gravity =
-                    Gravity.CENTER;
+            FrameLayout.LayoutParams imageParams =
+                    new FrameLayout.LayoutParams(
+                            qrSize,
+                            qrSize,
+                            Gravity.CENTER);
 
             container.addView(
                     image,
-                    qrParams);
+                    imageParams);
 
             new AlertDialog.Builder(this)
-                    .setTitle(
-                            R.string.receive_qr_title)
+                    .setTitle(R.string.receive_qr_title)
                     .setView(container)
                     .setPositiveButton(
                             R.string.got_it,
@@ -413,18 +387,15 @@ public class MainActivity extends AppCompatActivity
 
         } catch (Exception error) {
             showToastMessage(
-                    getString(
-                            R.string.wallet_address_missing));
+                    getString(R.string.wallet_address_missing));
         }
     }
 
     private void showAbout() {
         AlertDialog dialog =
                 new AlertDialog.Builder(this)
-                        .setTitle(
-                                R.string.about_title)
-                        .setMessage(
-                                Html.fromHtml(strAbout))
+                        .setTitle(R.string.about_title)
+                        .setMessage(Html.fromHtml(strAbout))
                         .setPositiveButton(
                                 R.string.got_it,
                                 null)
@@ -432,12 +403,11 @@ public class MainActivity extends AppCompatActivity
 
         dialog.show();
 
-        TextView msg =
-                dialog.findViewById(
-                        android.R.id.message);
+        TextView message =
+                dialog.findViewById(android.R.id.message);
 
-        if (msg != null) {
-            msg.setMovementMethod(
+        if (message != null) {
+            message.setMovementMethod(
                     LinkMovementMethod.getInstance());
         }
     }
@@ -445,6 +415,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void setPresenter(
             MainActivityContract.MainActivityPresenter presenter) {
+
         this.presenter = presenter;
     }
 
@@ -503,23 +474,34 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    private void updateReceiveQr(
-            final String address) {
+    /**
+     * Generates the small QR displayed directly on the
+     * main wallet screen.
+     *
+     * The QR content is always the actual wallet address
+     * supplied by the presenter.
+     */
+    private void updateReceiveQr(final String address) {
+        new Thread(
+                () -> {
+                    try {
+                        final Bitmap qr =
+                                QRCode.from(address)
+                                        .withSize(300, 300)
+                                        .bitmap();
 
-        new Thread(() -> {
-            try {
-                final Bitmap qr =
-                        QRCode.from(address)
-                                .withSize(300, 300)
-                                .bitmap();
+                        runOnUiThread(
+                                () -> {
+                                    if (ivReceiveQr_AM != null) {
+                                        ivReceiveQr_AM.setImageBitmap(qr);
+                                    }
+                                });
 
-                runOnUiThread(() ->
-                        ivReceiveQr_AM
-                                .setImageBitmap(qr));
-
-            } catch (Exception ignored) {
-            }
-        }, "receive-qr-generator").start();
+                    } catch (Exception ignored) {
+                    }
+                },
+                "receive-qr-generator")
+                .start();
     }
 
     @Override
@@ -595,7 +577,8 @@ public class MainActivity extends AppCompatActivity
 
             index.setTextSize(12);
 
-            index.setTextColor(contentColor);
+            index.setTextColor(
+                    contentColor);
 
             index.setTypeface(
                     null,
@@ -630,22 +613,21 @@ public class MainActivity extends AppCompatActivity
                             android.graphics.Typeface.BOLD),
                     typeStart,
                     typeEnd,
-                    android.text.Spanned
-                            .SPAN_EXCLUSIVE_EXCLUSIVE);
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
             summaryText.setSpan(
                     new android.text.style.StyleSpan(
                             android.graphics.Typeface.BOLD),
                     amountStart,
                     amountEnd,
-                    android.text.Spanned
-                            .SPAN_EXCLUSIVE_EXCLUSIVE);
+                    android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
             summary.setText(summaryText);
 
             summary.setTextSize(13);
 
-            summary.setTextColor(contentColor);
+            summary.setTextColor(
+                    contentColor);
 
             summary.setTypeface(
                     null,
@@ -670,7 +652,8 @@ public class MainActivity extends AppCompatActivity
 
             dateStatus.setTextSize(12);
 
-            dateStatus.setTextColor(contentColor);
+            dateStatus.setTextColor(
+                    contentColor);
 
             dateStatus.setTypeface(
                     null,
@@ -694,7 +677,8 @@ public class MainActivity extends AppCompatActivity
 
             txId.setTextSize(12);
 
-            txId.setTextColor(contentColor);
+            txId.setTextColor(
+                    contentColor);
 
             txId.setTypeface(
                     null,
@@ -732,13 +716,12 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void showToastMessage(
-            String message) {
+    public void showToastMessage(String message) {
         showToast(message);
     }
 
     @Override
-    public android.content.Context getActivityContext() {
+    public Context getActivityContext() {
         return this;
     }
 
@@ -780,14 +763,12 @@ public class MainActivity extends AppCompatActivity
         File oldWallet =
                 new File(
                         getCacheDir(),
-                        Constants.WALLET_NAME
-                                + ".wallet");
+                        Constants.WALLET_NAME + ".wallet");
 
         File newWallet =
                 new File(
                         getFilesDir(),
-                        Constants.WALLET_NAME
-                                + ".wallet");
+                        Constants.WALLET_NAME + ".wallet");
 
         if (newWallet.exists() ||
                 !oldWallet.exists()) {
@@ -802,14 +783,12 @@ public class MainActivity extends AppCompatActivity
             File oldChain =
                     new File(
                             getCacheDir(),
-                            Constants.WALLET_NAME
-                                    + ".spvchain");
+                            Constants.WALLET_NAME + ".spvchain");
 
             File newChain =
                     new File(
                             getFilesDir(),
-                            Constants.WALLET_NAME
-                                    + ".spvchain");
+                            Constants.WALLET_NAME + ".spvchain");
 
             if (oldChain.exists() &&
                     !newChain.exists()) {
@@ -820,7 +799,6 @@ public class MainActivity extends AppCompatActivity
             }
 
         } catch (Exception ignored) {
-            // Preserve the existing wallet if cache migration cannot complete.
         }
     }
 
@@ -829,20 +807,20 @@ public class MainActivity extends AppCompatActivity
             File destination)
             throws Exception {
 
-        try (java.io.InputStream input =
-                     new java.io.FileInputStream(source);
+        try (
+                java.io.InputStream input =
+                        new java.io.FileInputStream(source);
 
-             java.io.OutputStream output =
-                     new java.io.FileOutputStream(destination)) {
+                java.io.OutputStream output =
+                        new java.io.FileOutputStream(destination)
+        ) {
 
             byte[] buffer =
                     new byte[8192];
 
             int count;
 
-            while ((count =
-                    input.read(buffer)) != -1) {
-
+            while ((count = input.read(buffer)) != -1) {
                 output.write(
                         buffer,
                         0,
@@ -851,11 +829,9 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    private void showToast(
-            String message) {
-
-        runOnUiThread(() ->
-                Toast.makeText(
+    private void showToast(String message) {
+        runOnUiThread(
+                () -> Toast.makeText(
                         this,
                         message,
                         Toast.LENGTH_SHORT)
