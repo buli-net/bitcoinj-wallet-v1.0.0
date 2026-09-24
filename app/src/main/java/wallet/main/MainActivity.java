@@ -205,7 +205,7 @@ public class MainActivity extends AppCompatActivity
             case R.id.menuSend:
                 startActivity(new Intent(this, wallet.send.SendActivity.class));
                 return true;
-            case R.id.menuInfo:
+            case R.id.menuAbout:
                 startActivity(new Intent(this, wallet.about.AboutActivity.class));
                 return true;
             case R.id.menuBackup:
