@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- App strings. -->
+<resources>
+    <string name="app_name">Bitcoin Wallet</string>
+    <string name="menu_scan">Scan</string>
+    <string name="menu_send">Send</string>
+    <string name="menu_backup">Backup</string>
+    <string name="menu_restore">Restore</string>
+    <string name="menu_info">Info</string>
+    <string name="wallet_title">Wallet</string>
+    <string name="about_title">About</string>
+    <string name="backup_title">Backup wallet</string>
+    <string name="restore_title">Restore wallet</string>
+    <string name="transactions_title">Transactions</string>
+    <string name="send_title">Send Bitcoin</string>
+    <string name="about_text">Bitcoin Wallet
+
+A lightweight Bitcoin wallet built on BitcoinJ 0.17.1. The application is designed to keep wallet operations local, simple, and transparent.
+
+WALLET AND TRANSACTIONS
+Your wallet data and transaction history are maintained locally by the BitcoinJ wallet engine. The application does not require a separate account or hosted wallet service.
+
+SECURITY AND BACKUPS
+Private wallet data is stored in the application’s private storage. Backups contain sensitive wallet information and should be kept in a secure location. Never share a wallet backup or private keys with anyone.
+
+NETWORK
+This application is configured for the Bitcoin main network. Blockchain synchronization and transaction state are provided by the BitcoinJ wallet engine.
+
+OPEN SOURCE COMPONENT
+BitcoinJ provides the wallet and Bitcoin protocol functionality used by this application.
+
+Use the application responsibly and keep independent backups of your wallet.</string>
+    <string name="scan_bitcoin_address">Scan Bitcoin address</string>
+    <string name="scan_recipient_address">Scan recipient address</string>
+    <string name="got_it">GOT IT</string>
+    <string name="cancel">CANCEL</string>
+    <string name="restore_action">RESTORE</string>
+    <string name="wallet_address_missing">No wallet address is available.</string>
+    <string name="bitcoin_address_clip_label">Bitcoin address</string>
+    <string name="copy_address">Copy Bitcoin address</string>
+    <string name="address_copied">Address copied.</string>
+    <string name="no_transactions_yet">No transactions yet.</string>
+    <string name="unable_load_transactions">Unable to load transactions: %1$s</string>
+    <string name="unknown_time">Unknown time</string>
+    <string name="download_initializing">Initializing peer network...</string>
+    <string name="percentage_preview">68 %</string>
+    <string name="total_balance">Total balance</string>
+    <string name="zero_btc">0 BTC</string>
+    <string name="my_address">My address</string>
+    <string name="receive_qr_title">Receive Bitcoin QR</string>
+    <string name="loading">Loading...</string>
+    <string name="backup_description">The backup contains wallet keys. Store it securely and never share it with anyone.</string>
+    <string name="create_backup">CREATE BACKUP</string>
+    <string name="restore_description">Choose a bitcoinj wallet backup. The file is validated before replacing the current wallet.</string>
+    <string name="choose_backup">CHOOSE BACKUP</string>
+    <string name="to_label">To:</string>
+    <string name="recipient_hint">Enter or paste recipient address</string>
+    <string name="qr">QR</string>
+    <string name="amount_label">Amount:</string>
+    <string name="amount_hint">0.00000000</string>
+    <string name="max">MAX</string>
+    <string name="btc_suffix"> BTC</string>
+    <string name="fee_rate_min">1 sat/vB</string>
+    <string name="fee_rate_max">10 sat/vB</string>
+    <string name="estimated_fee_title">Transaction fee (estimated)</string>
+    <string name="estimated_fee_description">Fee will be calculated from the real transaction size before broadcast.</string>
+    <string name="send_button">SEND</string>
+    <string name="wallet_not_ready">Wallet is not ready.</string>
+    <string name="wallet_file_empty">Wallet file is empty.</string>
+    <string name="backup_failed">Backup failed: %1$s</string>
+    <string name="backup_success">Wallet backup created successfully.</string>
+    <string name="backup_destination_open_failed">Unable to open the backup destination.</string>
+    <string name="backup_title_file">%1$s-backup.wallet</string>
+    <string name="restore_question">Restore wallet?</string>
+    <string name="restore_message">The current wallet will be replaced by the wallet in the selected backup. Continue?</string>
+    <string name="wallet_core_not_ready">Wallet core is not ready.</string>
+    <string name="restore_in_progress">Restoring wallet...</string>
+    <string name="restore_read_failed">Unable to read the wallet backup.</string>
+    <string name="restore_too_large">The wallet backup file is too large.</string>
+    <string name="restore_empty">The wallet backup file is empty.</string>
+    <string name="restore_install_failed">Unable to install the wallet from the backup.</string>
+    <string name="restore_success">Wallet restore completed. Restarting the wallet...</string>
+    <string name="restore_failed">Wallet restore failed: %1$s</string>
+    <string name="file_restore_invalid">The selected restore file is invalid.</string>
+    <string name="sync_error">Bitcoin sync error: %1$s</string>
+    <string name="sync_waiting_network">Bitcoin sync is waiting for network connectivity. Please keep the app open to continue.</string>
+    <string name="blockchain_reconnecting">Blockchain connection was interrupted. Reconnecting...</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="select_recipient">Select a recipient.</string>
+    <string name="select_valid_amount">Enter a valid amount.</string>
+    <string name="select_valid_fee_rate">Select a valid fee rate.</string>
+    <string name="insufficient_balance">Not enough balance. Available: %1$s</string>
+    <string name="transaction_broadcast">Transaction broadcast. Fee: %1$s</string>
+    <string name="broadcast_failed">Broadcast failed: %1$s</string>
+    <string name="insufficient_money">Insufficient money. Missing: %1$s
+Selected fee rate: %2$d sat/vkB</string>
+    <string name="dust_amount">Amount is below the allowed dust limit for this transaction.</string>
+    <string name="send_failed">Send failed: %1$s</string>
+    <string name="receive_message">Receive %1$s</string>
+    <string name="transaction_date_status">%1$s  |  %2$s</string>
+    <string name="transaction_tx_id">TX: %1$s</string>
+    <string name="confirmed_one">Confirmed: %1$d block</string>
+    <string name="confirmed_many">Confirmed: %1$d blocks</string>
+    <string name="unconfirmed">Unconfirmed</string>
+    <string name="fee_rate_label">Fee rate: %1$d sat/vB (%2$d sat/vkB)</string>
+    <string name="error_balance_read">Unable to read wallet balance.</string>
+    <string name="amount_default">0.00</string>
+    <string name="filter_all">All</string>
+    <string name="filter_sent">Sent</string>
+    <string name="filter_received">Received</string>
+    <string name="fee_rate_initial">Fee rate: 5 sat/vB</string>
+    <string name="wallet_start_failed_detailed">Bitcoin wallet could not start. Check Logcat with tag %1$s for the cause.</string>
+    <string name="wallet_closing">Wallet is closing.</string>
+    <string name="restore_network_mismatch">The wallet backup uses a different network from this application.</string>
+    <string name="restore_stop_failed">Unable to stop the current wallet for restore.</string>
+    <string name="restore_before_delete_failed">Unable to remove the previous restore safety file.</string>
+    <string name="restore_current_wallet_preserve_failed">Unable to preserve the current wallet.</string>
+    <string name="percentage_display">%1$d %%</string>
+    <string name="transaction_sent">SENT</string>
+    <string name="transaction_received">RECEIVED</string>
+    <string name="transaction_generic">TRANSACTION</string>
+</resources>

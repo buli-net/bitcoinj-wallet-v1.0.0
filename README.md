@@ -1,33 +1,34 @@
 # BitcoinJ Wallet v1.0.0
 
-A small Android Bitcoin wallet built around BitcoinJ 0.17.1.
+A lightweight Android Bitcoin wallet built around BitcoinJ 0.17.1.
 
-## Structure
+## Architecture
 
-- XML layouts define the static UI.
-- Activities handle screen events and navigation.
-- RecyclerView adapters bind transaction data to XML row layouts.
-- `MainActivityPresenter` owns the existing BitcoinJ wallet and sync lifecycle.
-- QR generation and the receive QR dialog are isolated from the main activity.
-- Legacy wallet-file migration is isolated in `WalletFileMigration`.
-- Wallet files stay in app-private persistent storage.
+- XML defines static screen layouts and reusable row layouts.
+- Activities handle navigation and screen-level events.
+- `MainActivityPresenter` owns the existing BitcoinJ wallet lifecycle and synchronization.
+- Transaction data is mapped into immutable `TransactionItem` objects and rendered by `TransactionAdapter`.
+- QR generation and the receive QR dialog are isolated in the `wallet.qr` package.
+- Backup, restore, and wallet-file migration are isolated from the main screen.
+- Wallet files remain in application-private storage.
 - Backup and restore use the Android document provider.
-- Release builds use R8 and resource shrinking.
 
-## UI rules
+## UI
 
-- Do not build static UI with `new View(...)` in Java.
-- Keep layout structure in XML.
-- Keep Java focused on events, state updates, navigation, and adapters.
-- Keep reusable UI behavior in small dedicated classes.
+- The main screen contains the full transaction list; there is no separate Recent or transaction-history screen.
+- Static UI is defined in XML rather than constructed in Java.
+- The application uses AppCompat semantic theme attributes for UI colors.
+- No application color palette is defined. The existing logo is the only fixed-color brand asset.
+- User-visible text is stored in `res/values/strings.xml`.
+- Day and night appearance are provided by the AppCompat `DayNight` theme.
 
 ## Build
 
-The project intentionally keeps the existing Java 8 / Android Support Library 28 toolchain for this cleanup stage so the BitcoinJ wallet behavior is not migrated at the same time as the UI.
+The project intentionally retains the Java 8 and Android Support Library 28 toolchain during this cleanup stage so wallet behavior is not migrated at the same time as the UI.
 
 ```bash
 ./gradlew assembleDebug
 ./gradlew assembleRelease
 ```
 
-The GitHub Actions release workflow is manual-only.
+The release workflow is manual-only.
