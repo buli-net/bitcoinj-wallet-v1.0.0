@@ -14,23 +14,7 @@
     <string name="restore_title">Restore wallet</string>
     <string name="transactions_title">Transactions</string>
     <string name="send_title">Send Bitcoin</string>
-    <string name="about_text">Bitcoin Wallet
-
-A lightweight Bitcoin wallet built on BitcoinJ 0.17.1. The application is designed to keep wallet operations local, simple, and transparent.
-
-WALLET AND TRANSACTIONS
-Your wallet data and transaction history are maintained locally by the BitcoinJ wallet engine. The application does not require a separate account or hosted wallet service.
-
-SECURITY AND BACKUPS
-Private wallet data is stored in the application’s private storage. Backups contain sensitive wallet information and should be kept in a secure location. Never share a wallet backup or private keys with anyone.
-
-NETWORK
-This application is configured for the Bitcoin main network. Blockchain synchronization and transaction state are provided by the BitcoinJ wallet engine.
-
-OPEN SOURCE COMPONENT
-BitcoinJ provides the wallet and Bitcoin protocol functionality used by this application.
-
-Use the application responsibly and keep independent backups of your wallet.</string>
+    <string name="about_text">Bitcoin Wallet\n\nA lightweight Bitcoin wallet built on BitcoinJ 0.17.1. The application is designed to keep wallet operations local, simple, and transparent.\n\nWALLET AND TRANSACTIONS\nYour wallet data and transaction history are maintained locally by the BitcoinJ wallet engine. The application does not require a separate account or hosted wallet service.\n\nSECURITY AND BACKUPS\nPrivate wallet data is stored in the application’s private storage. Backups contain sensitive wallet information and should be kept in a secure location. Never share a wallet backup or private keys with anyone.\n\nNETWORK\nThis application is configured for the Bitcoin main network. Blockchain synchronization and transaction state are provided by the BitcoinJ wallet engine.\n\nOPEN SOURCE COMPONENT\nBitcoinJ provides the wallet and Bitcoin protocol functionality used by this application.\n\nUse the application responsibly and keep independent backups of your wallet.</string>
     <string name="scan_bitcoin_address">Scan Bitcoin address</string>
     <string name="scan_recipient_address">Scan recipient address</string>
     <string name="got_it">GOT IT</string>
