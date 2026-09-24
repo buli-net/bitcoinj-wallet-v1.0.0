@@ -224,12 +224,12 @@ public class MainActivity extends AppCompatActivity
         }
 
         try {
-            Bitmap qr = QRCode.from(address).withSize(900, 900).bitmap();
+            Bitmap qr = QRCode.from(address).withSize(800, 800).bitmap();
             ImageView image = new ImageView(this);
             image.setImageBitmap(qr);
             image.setScaleType(ImageView.ScaleType.FIT_CENTER);
             image.setBackgroundColor(android.graphics.Color.WHITE);
-            int padding = (int) (4 * getResources().getDisplayMetrics().density);
+            int padding = (int) (8 * getResources().getDisplayMetrics().density);
             image.setPadding(padding, padding, padding, padding);
 
             int size = (int) (300 * getResources().getDisplayMetrics().density);
@@ -308,7 +308,7 @@ public class MainActivity extends AppCompatActivity
     private void updateReceiveQr(final String address) {
         new Thread(() -> {
             try {
-                final Bitmap qr = QRCode.from(address).withSize(400, 400).bitmap();
+                final Bitmap qr = QRCode.from(address).withSize(300, 300).bitmap();
                 runOnUiThread(() -> ivReceiveQr_AM.setImageBitmap(qr));
             } catch (Exception ignored) {
             }
