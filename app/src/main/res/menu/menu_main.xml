@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- UI resource. -->
+<menu
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    
+    <item
+        android:id="@+id/menuScanQR_MM"
+        android:title="@string/menu_scan"
+        android:icon="@drawable/ic_menu_scan_24dp"
+        app:showAsAction="always|withText"/>
+    <item
+        android:id="@+id/menuSend_MM"
+        android:title="@string/menu_send"
+        android:icon="@drawable/ic_menu_send_24dp"
+        app:showAsAction="always|withText"/>
+    <item
+        android:id="@+id/menuBackupWallet_MM"
+        android:title="@string/menu_backup"
+        android:icon="@drawable/ic_menu_backup_24dp"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/menuRestoreWallet_MM"
+        android:title="@string/menu_restore"
+        android:icon="@drawable/ic_menu_restore_24dp"
+        app:showAsAction="never"/>
+    
+    <item
+        android:id="@+id/menuUtilities_MM"
+        android:title="@string/menu_utilities"
+        android:icon="@drawable/ic_menu_utilities_24dp"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/menuSettings_MM"
+        android:title="@string/menu_settings"
+        android:icon="@drawable/ic_menu_settings_24dp"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/menuReportIssue_MM"
+        android:title="@string/menu_report_issue"
+        android:icon="@drawable/ic_menu_report_issue_24dp"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/menuDonate_MM"
+        android:title="@string/menu_donate"
+        android:icon="@drawable/ic_menu_donate_24dp"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/menuLegacyAddress_MM"
+        android:title="@string/menu_legacy_address"
+        android:icon="@drawable/ic_menu_legacy_address_24dp"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/menuHelp_MM"
+        android:title="@string/menu_help"
+        android:icon="@drawable/ic_menu_help_24dp"
+        app:showAsAction="never"/>
+    <item
+        android:id="@+id/menuInfo_MM"
+        android:title="@string/menu_info"
+        android:icon="@drawable/ic_menu_info_24dp"
+        app:showAsAction="never"/>
+</menu>

@@ -4,8 +4,6 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // Release documentation: the project remains on the Android Gradle Plugin version
-        // selected by the application baseline and compiled with Java 8 compatibility.
         classpath 'com.android.tools.build:gradle:3.6.4'
     }
 }
@@ -23,5 +21,3 @@ task clean(type: Delete) {
     delete rootProject.buildDir
 }
 
-// Release build convenience task: exposes the application debug build from the root project.
-task assembleDebug(dependsOn: ':app:assembleDebug')
