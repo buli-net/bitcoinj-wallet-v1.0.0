@@ -28,7 +28,7 @@
         app:showAsAction="never" />
 
     <item
-        android:id="@+id/menuInfo"
+        android:id="@+id/menuAbout"
         android:title="@string/menu_about"
         android:icon="@drawable/ic_menu_info_24dp"
         app:showAsAction="never" />
