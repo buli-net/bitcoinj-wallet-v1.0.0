@@ -27,3 +27,11 @@ A lightweight Android Bitcoin wallet built with Java, XML layouts, and bitcoinj 
 
 
 Phase 2 adds recovery phrase restore, recovery phrase display, and wallet password encryption. Existing file backup and file restore remain available. Passwords are never stored by the app.
+
+## Wallet derivation
+
+- New deterministic wallets use bitcoinj 0.17.1 with BIP43 wallet structure and P2WPKH as the preferred output type.
+- The P2WPKH wallet structure also activates the P2PKH chain, so BIP44 and BIP84 accounts can be restored from the same mnemonic.
+- Mnemonic restore requires a wallet creation date in YYYY-MM-DD format and passes it directly to bitcoinj as the deterministic seed creation time.
+- No birthday fallback or synthetic creation date is used.
+- Taproot/BIP86 is not enabled because bitcoinj 0.17.1 does not provide a complete Taproot HD wallet profile.

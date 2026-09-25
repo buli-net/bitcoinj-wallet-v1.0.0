@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/syncContainer"
+    android:background="?android:attr/colorBackground"
+    android:clickable="true"
+    android:focusable="true">
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_gravity="center">
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_logo"
+            android:layout_gravity="center"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/download_initializing"
+            android:gravity="center"
+            android:layout_marginTop="12dp"/>
+        <ProgressBar
+            android:id="@+id/syncProgress"
+            style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            android:max="100"
+            tools:progress="68"
+            android:layout_marginTop="8dp"/>
+        <TextView
+            android:id="@+id/syncPercentage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:text="@string/percentage_preview"
+            android:layout_gravity="center"/>
+    </LinearLayout>
+</FrameLayout>
