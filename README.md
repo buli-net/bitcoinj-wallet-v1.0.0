@@ -24,3 +24,6 @@ A lightweight Android Bitcoin wallet built with Java, XML layouts, and bitcoinj 
 - After completion or cancellation, the process is removed and SEND returns.
 - Uses the existing AppCompat/system semantic color theme throughout the application.
 - User-facing text is stored in Android string resources.
+
+
+Phase 2 adds recovery phrase restore, recovery phrase display, and wallet password encryption. Existing file backup and file restore remain available. Passwords are never stored by the app.
