@@ -1,37 +1,15 @@
-# Bitcoin Wallet
+# BitcoinJ Wallet Phase 3
 
-A lightweight Android Bitcoin wallet built with Java, XML layouts, and bitcoinj 0.17.1.
+Baseline: Phase 2 v5.
 
-## Send flow
+Phase 3 adds:
 
-- Displays the current wallet balance on the Send screen.
-- Shows amount, fee, total debit, and remaining balance.
-- Calculates the actual transaction fee while preparing the transaction.
-- Replaces the SEND button with an inline send-process card.
-- Shows a horizontal 60-second safety progress bar on the Send screen.
-- Provides CANCEL and SEND NOW during the safety delay.
-- Rechecks wallet balance immediately before committing the transaction.
-- Prevents overlapping send operations.
-- Supports opt-in Replace-by-Fee (RBF).
-- MAX calculates the maximum spendable output after fees.
+- Coin control for the next send using bitcoinj `CoinSelector` filtering.
+- WIF private-key import using bitcoinj `DumpedPrivateKey`.
+- Private-key import remains encrypted when the wallet is encrypted.
+- Watch-only address monitoring using bitcoinj `Wallet.addWatchedAddress`.
+- Optional first-use date for watched addresses; no hardcoded date is used.
 
-## UI
+Existing backup/restore, mnemonic restore, optional wallet birthday, wallet encryption, recovery phrase, SEND/RBF lifecycle, transaction UI, and semantic color rules are preserved.
 
-- No send confirmation popup.
-- The send process stays on the Send screen.
-- SEND disappears while a transaction is being prepared or broadcast.
-- CANCEL and SEND NOW are visible only while the process is active.
-- After completion or cancellation, the process is removed and SEND returns.
-- Uses the existing AppCompat/system semantic color theme throughout the application.
-- User-facing text is stored in Android string resources.
-
-
-Phase 2 adds recovery phrase restore, recovery phrase display, and wallet password encryption. Existing file backup and file restore remain available. Passwords are never stored by the app.
-
-## Wallet derivation
-
-- New deterministic wallets use bitcoinj 0.17.1 with BIP43 wallet structure and P2WPKH as the preferred output type.
-- The P2WPKH wallet structure also activates the P2PKH chain, so BIP44 and BIP84 accounts can be restored from the same mnemonic.
-- Mnemonic restore requires a wallet creation date in YYYY-MM-DD format and passes it directly to bitcoinj as the deterministic seed creation time.
-- No birthday fallback or synthetic creation date is used.
-- Taproot/BIP86 is not enabled because bitcoinj 0.17.1 does not provide a complete Taproot HD wallet profile.
+Taproot/BIP86 is not added because bitcoinj 0.17.1 does not expose it as a native HD wallet profile.
