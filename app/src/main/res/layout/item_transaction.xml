@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="14dp"
+    android:background="@drawable/bg_card"
+    android:layout_marginBottom="8dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:animateLayoutChanges="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tvTxType"
+            android:layout_width="72dp"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:textSize="13sp"/>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvTxId"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textColor="?android:attr/textColorPrimary"/>
+
+            <TextView
+                android:id="@+id/tvTxTime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="12sp"
+                android:textColor="?android:attr/textColorSecondary"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="end">
+
+            <TextView
+                android:id="@+id/tvTxAmount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:textSize="13sp"/>
+
+            <TextView
+                android:id="@+id/tvTxConf"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/txDetails"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="?android:attr/textColorSecondary"
+            android:alpha="0.25" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="@string/transaction_details"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvTxDetailId"
+                style="@style/TransactionDetailValue"
+                android:textIsSelectable="true" />
+            <TextView
+                android:id="@+id/tvTxDetailType"
+                style="@style/TransactionDetailValue" />
+            <TextView
+                android:id="@+id/tvTxDetailAmount"
+                style="@style/TransactionDetailValue" />
+            <TextView
+                android:id="@+id/tvTxDetailTime"
+                style="@style/TransactionDetailValue" />
+            <TextView
+                android:id="@+id/tvTxDetailStatus"
+                style="@style/TransactionDetailValue" />
+            <TextView
+                android:id="@+id/tvTxDetailFee"
+                style="@style/TransactionDetailValue" />
+            <TextView
+                android:id="@+id/tvTxDetailPeers"
+                style="@style/TransactionDetailValue" />
+            <TextView
+                android:id="@+id/tvTxDetailInputs"
+                style="@style/TransactionDetailValue" />
+            <TextView
+                android:id="@+id/tvTxDetailOutputs"
+                style="@style/TransactionDetailValue" />
+            <TextView
+                android:id="@+id/tvTxDetailSize"
+                style="@style/TransactionDetailValue" />
+            <TextView
+                android:id="@+id/tvTxDetailVersion"
+                style="@style/TransactionDetailValue" />
+            <TextView
+                android:id="@+id/tvTxDetailBlockHeight"
+                style="@style/TransactionDetailValue" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
