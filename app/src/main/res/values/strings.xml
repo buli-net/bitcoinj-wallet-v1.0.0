@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- App strings. -->
+<resources>
+    <string name="app_name">Bitcoin Wallet</string>
+    <string name="menu_scan">Scan</string>
+    <string name="menu_send">Send</string>
+    <string name="menu_backup">Backup</string>
+    <string name="menu_restore">Restore</string>
+    <string name="menu_info">Info</string>
+    <string name="wallet_title">Wallet</string>
+    <string name="about_title">About</string>
+    <string name="backup_title">Backup wallet</string>
+    <string name="restore_title">Restore wallet</string>
+    <string name="transactions_title">Transactions</string>
+    <string name="send_title">Send Bitcoin</string>
+    <string name="about_text">Bitcoin Wallet
+
+A lightweight Bitcoin wallet built on BitcoinJ 0.17.1. The application is designed to keep wallet operations local, simple, and transparent.
+
+WALLET AND TRANSACTIONS
+Your wallet data and transaction history are maintained locally by the BitcoinJ wallet engine. The application does not require a separate account or hosted wallet service.
+
+SECURITY AND BACKUPS
+Private wallet data is stored in the application’s private storage. Backups contain sensitive wallet information and should be kept in a secure location. Never share a wallet backup or private keys with anyone.
+
+NETWORK
+This application is configured for the Bitcoin main network. Blockchain synchronization and transaction state are provided by the BitcoinJ wallet engine.
+
+OPEN SOURCE COMPONENT
+BitcoinJ provides the wallet and Bitcoin protocol functionality used by this application.
+
+Use the application responsibly and keep independent backups of your wallet.</string>
+    <string name="scan_bitcoin_address">Scan Bitcoin address</string>
+    <string name="scan_recipient_address">Scan recipient address</string>
+    <string name="got_it">GOT IT</string>
+    <string name="cancel">CANCEL</string>
+    <string name="restore_action">RESTORE</string>
+    <string name="wallet_address_missing">No wallet address is available.</string>
+    <string name="bitcoin_address_clip_label">Bitcoin address</string>
+    <string name="copy_address">Copy Bitcoin address</string>
+    <string name="address_copied">Address copied.</string>
+    <string name="no_transactions_yet">No transactions yet.</string>
+    <string name="unknown_time">Unknown time</string>
+    <string name="download_initializing">Initializing peer network...</string>
+    <string name="percentage_preview">68 %</string>
+    <string name="total_balance">Total balance</string>
+    <string name="available_balance_loading">Available: loading...</string>
+    <string name="pending_balance_loading">Pending: loading...</string>
+    <string name="available_balance">Available: %1$s</string>
+    <string name="pending_balance">Pending: %1$s</string>
+    <string name="zero_btc">0 BTC</string>
+    <string name="my_address">My address</string>
+    <string name="wallet_type_main">MAIN WALLET</string>
+    <string name="wallet_type_watch">WATCH-ONLY WALLET</string>
+    <string name="wallet_selector_title">Select wallet</string>
+    <string name="wallet_selector_main">MAIN WALLET
+%1$s</string>
+    <string name="wallet_selector_watch">WATCH-ONLY WALLET
+%1$s</string>
+    <string name="wallet_selector_failed">Unable to select wallet: %1$s</string>
+    <string name="receive_qr_title">Receive Bitcoin QR</string>
+    <string name="loading">Loading...</string>
+    <string name="backup_description">The backup contains wallet keys. Store it securely and never share it with anyone.</string>
+    <string name="create_backup">CREATE BACKUP</string>
+    <string name="restore_description">Choose a bitcoinj wallet backup. The file is validated before replacing the current wallet.</string>
+    <string name="choose_backup">CHOOSE BACKUP</string>
+    <string name="to_label">To:</string>
+    <string name="recipient_hint">Enter or paste recipient address</string>
+    <string name="qr">QR</string>
+    <string name="amount_label">Amount:</string>
+    <string name="amount_hint">0.00000000</string>
+    <string name="max">MAX</string>
+    <string name="btc_suffix"> BTC</string>
+    <string name="fee_rate_min">1 sat/vB</string>
+    <string name="fee_rate_max">10 sat/vB</string>
+    <string name="send_button">SEND</string>
+
+    <string name="wallet_balance">Wallet balance</string>
+    <string name="send_summary_title">Transaction summary</string>
+    <string name="total_debit_label">Amount + fee</string>
+    <string name="remaining_balance_label">Balance after send</string>
+    <string name="estimated_fee_pending">Actual fee will be calculated when the transaction is prepared.</string>
+    <string name="actual_fee_value">Actual fee: %1$s</string>
+    <string name="broadcasting_transaction">BROADCASTING...</string>
+    <string name="send_already_pending">A send transaction is already waiting for confirmation.</string>
+    <string name="send_not_ready">The transaction is no longer ready to send.</string>
+    <string name="rbf_title">Replace-by-fee (RBF)</string>
+    <string name="rbf_description">Allow this unconfirmed transaction to be replaced with a higher-fee version.</string>
+    <string name="rbf_enable">Enable</string>
+    <string name="rbf_enabled">RBF: Enabled</string>
+    <string name="rbf_disabled">RBF: Disabled</string>
+    <string name="transaction_fee_unavailable">Unable to determine the transaction fee.</string>
+    <string name="rbf_enable_failed">Unable to enable RBF for this transaction.</string>
+    <string name="send_review_recipient">Recipient</string>
+    <string name="send_review_balance">Wallet balance</string>
+    <string name="send_review_amount">Amount to send</string>
+    <string name="send_review_fee">Actual transaction fee</string>
+    <string name="send_review_total">Total wallet debit</string>
+    <string name="send_review_remaining">Balance after send</string>
+    <string name="send_process_title">Send process</string>
+    <string name="send_process_preparing">Preparing transaction...</string>
+    <string name="send_process_calculating">Calculating actual fee...</string>
+    <string name="send_process_waiting">Transaction ready</string>
+    <string name="send_process_broadcasting">Broadcasting transaction...</string>
+    <string name="send_process_description">The transaction is prepared and signed before the safety delay. Cancel stops it before commit. SEND NOW skips the remaining delay.</string>
+    <string name="send_countdown">Sending in %1$d seconds</string>
+    <string name="send_ready_to_send">Sending now...</string>
+    <string name="send_now">SEND NOW</string>
+    <string name="send_calculated_on_send">Calculated on SEND</string>
+    <string name="max_amount_unavailable">Unable to calculate the maximum spendable amount.</string>
+    <string name="max_amount_failed">Unable to calculate MAX: %1$s</string>
+    <string name="wallet_not_ready">Wallet is not ready.</string>
+    <string name="wallet_file_empty">Wallet file is empty.</string>
+    <string name="backup_failed">Backup failed: %1$s</string>
+    <string name="backup_success">Wallet backup created successfully.</string>
+    <string name="backup_destination_open_failed">Unable to open the backup destination.</string>
+    <string name="backup_title_file">%1$s-backup.wallet</string>
+    <string name="restore_question">Restore wallet?</string>
+    <string name="restore_message">The current wallet will be replaced by the wallet in the selected backup. Continue?</string>
+    <string name="wallet_core_not_ready">Wallet core is not ready.</string>
+    <string name="restore_in_progress">Restoring wallet...</string>
+    <string name="restore_read_failed">Unable to read the wallet backup.</string>
+    <string name="restore_too_large">The wallet backup file is too large.</string>
+    <string name="restore_empty">The wallet backup file is empty.</string>
+    <string name="restore_install_failed">Unable to install the wallet from the backup.</string>
+    <string name="restore_success">Wallet restore completed. Restarting the wallet...</string>
+    <string name="restore_failed">Wallet restore failed: %1$s</string>
+    <string name="file_restore_invalid">The selected restore file is invalid.</string>
+    <string name="sync_error">Bitcoin sync error: %1$s</string>
+    <string name="sync_waiting_network">Bitcoin sync is waiting for network connectivity. Please keep the app open to continue.</string>
+    <string name="blockchain_reconnecting">Blockchain connection was interrupted. Reconnecting...</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="select_recipient">Select a recipient.</string>
+    <string name="select_valid_amount">Enter a valid amount.</string>
+    <string name="select_valid_fee_rate">Select a valid fee rate.</string>
+    <string name="insufficient_balance">Not enough balance. Available: %1$s</string>
+    <string name="transaction_broadcast">Transaction broadcast. Fee: %1$s</string>
+    <string name="broadcast_peers">Seen by %1$d peers.</string>
+    <string name="broadcast_relayed">Relayed to peers.</string>
+    <string name="broadcast_failed">Broadcast failed: %1$s</string>
+    <string name="dust_amount">Amount is below the allowed dust limit for this transaction.</string>
+    <string name="send_failed">Send failed: %1$s</string>
+    <string name="receive_message">Receive %1$s</string>
+    <string name="confirmed_one">Confirmed: %1$d block</string>
+    <string name="confirmed_many">Confirmed: %1$d blocks</string>
+    <string name="unconfirmed">Unconfirmed</string>
+    <string name="transaction_peers">Peers: %1$d</string>
+    <string name="transaction_state_pending">Pending</string>
+    <string name="transaction_state_broadcast">Broadcast: %1$d peers</string>
+    <string name="transaction_state_confirmed">Confirmed</string>
+    <string name="transaction_state_dead">Dead</string>
+    <string name="fee_rate_label">Fee rate: %1$d sat/vB</string>
+    <string name="amount_default">0.00</string>
+    <string name="filter_all">All</string>
+    <string name="filter_sent">Sent</string>
+    <string name="filter_received">Received</string>
+    <string name="fee_rate_initial">Fee rate: 5 sat/vB</string>
+    <string name="wallet_start_failed_detailed">Bitcoin wallet could not start. Check Logcat with tag %1$s for the cause.</string>
+    <string name="wallet_closing">Wallet is closing.</string>
+    <string name="restore_network_mismatch">The wallet backup uses a different network from this application.</string>
+    <string name="restore_stop_failed">Unable to stop the current wallet for restore.</string>
+    <string name="restore_before_delete_failed">Unable to remove the previous restore safety file.</string>
+    <string name="restore_current_wallet_preserve_failed">Unable to preserve the current wallet.</string>
+    <string name="percentage_display">%1$d %%</string>
+    <string name="transaction_sent">SENT</string>
+    <string name="transaction_received">RECEIVED</string>
+    <string name="transaction_generic">TRANSACTION</string>
+    <string name="menu_security">Security</string>
+    <string name="security_title">Wallet security</string>
+    <string name="wallet_status_unencrypted">Password protection: off</string>
+    <string name="wallet_status_locked">Password protection: locked</string>
+    <string name="wallet_status_unlocked">Password protection: unlocked</string>
+    <string name="password_hint">Wallet password</string>
+    <string name="set_password">SET PASSWORD</string>
+    <string name="unlock_wallet">UNLOCK WALLET</string>
+    <string name="lock_wallet">LOCK WALLET</string>
+    <string name="remove_password">REMOVE PASSWORD</string>
+    <string name="password_too_short">Use at least 8 characters.</string>
+    <string name="password_required">Enter your wallet password.</string>
+    <string name="wrong_password">Incorrect wallet password.</string>
+    <string name="password_set_success">Wallet password protection is enabled.</string>
+    <string name="wallet_unlocked">Wallet unlocked.</string>
+    <string name="wallet_locked_success">Wallet locked.</string>
+    <string name="remove_password_title">Remove wallet password?</string>
+    <string name="remove_password_message">The wallet will no longer require a password for private-key operations.</string>
+    <string name="remove_password_action">REMOVE</string>
+    <string name="password_removed">Wallet password protection removed.</string>
+    <string name="security_operation_failed">Security operation failed: %1$s</string>
+    <string name="show_recovery_phrase">SHOW RECOVERY PHRASE</string>
+    <string name="recovery_phrase_title">Recovery phrase</string>
+    <string name="recovery_phrase_warning">Write these words down and keep them offline. Never share them or store them in an untrusted app.</string>
+    <string name="copy_recovery_phrase">COPY</string>
+    <string name="recovery_phrase_clip_label">Recovery phrase</string>
+    <string name="recovery_phrase_copied">Recovery phrase copied.</string>
+    <string name="unlock_before_recovery_phrase">Enter the wallet password to unlock it before viewing the recovery phrase.</string>
+    <string name="recovery_phrase_restore_title">Restore from recovery phrase</string>
+    <string name="recovery_phrase_restore_description">Enter the BIP39 recovery phrase. The optional creation date helps bitcoinj start the blockchain scan closer to the wallet history.</string>
+    <string name="recovery_phrase_hint">12, 15, 18, 21, or 24 recovery words</string>
+    <string name="wallet_birthday_hint">Optional creation date: YYYY-MM-DD</string>
+    <string name="restore_from_phrase">RESTORE FROM PHRASE</string>
+    <string name="recovery_phrase_required">Enter the recovery phrase.</string>
+    <string name="invalid_wallet_birthday">Use wallet creation date format YYYY-MM-DD.</string>
+    <string name="mnemonic_restore_question">Restore from recovery phrase?</string>
+    <string name="mnemonic_restore_message">The current wallet will be preserved temporarily, then replaced by a new wallet from this recovery phrase. The blockchain will be rescanned.</string>
+    <string name="mnemonic_restore_in_progress">Recovery restore started. The wallet will rescan the blockchain.</string>
+    <string name="mnemonic_restore_failed">Recovery restore failed: %1$s</string>
+    <string name="restore_chain_delete_failed">Unable to reset the blockchain index for recovery restore.</string>
+    <string name="wallet_locked">Wallet is locked. Unlock it from Security before sending.</string>
+
+    <string name="menu_wallet_tools">Wallet tools</string>
+    <string name="wallet_tools_title">Wallet tools</string>
+    <string name="coin_control">COINS</string>
+    <string name="coin_control_title">Coin control</string>
+    <string name="coin_control_empty">No spendable coins are available.</string>
+    <string name="coin_output_row">%1$s:%2$d  •  %3$s  •  %4$d confirmations</string>
+    <string name="coin_control_selected_total">Selected: %1$s</string>
+    <string name="clear_coin_selection">CLEAR</string>
+    <string name="apply_coin_selection">APPLY</string>
+    <string name="coin_selection_saved">Coin selection saved for the next send.</string>
+    <string name="watch_send_read_only_title">WATCH-ONLY WALLET</string>
+    <string name="watch_send_read_only_message">This wallet is watch-only. Sending, fee controls and coin selection are disabled.</string>
+    <string name="watch_send_coins_title">Coins</string>
+    <string name="watch_send_no_coins">No watched coins are currently available.</string>
+    <string name="watch_send_coin_row">%1$s:%2$d  •  %3$s  •  %4$d confirmations</string>
+    <string name="private_key_import_title">Import private key</string>
+    <string name="private_key_hint">WIF private key</string>
+    <string name="import_private_key">IMPORT PRIVATE KEY</string>
+    <string name="private_key_required">Enter a private key.</string>
+    <string name="private_key_imported">Private key imported.</string>
+    <string name="private_key_already_present">Private key is already in the wallet.</string>
+    <string name="private_key_import_failed">Private key import failed: %1$s</string>
+    <string name="watch_only_title">Watch-only address</string>
+    <string name="watch_address_hint">Bitcoin address</string>
+    <string name="watch_address_date_hint">Optional first-use date: YYYY-MM-DD</string>
+    <string name="add_watch_address">WATCH ADDRESS</string>
+    <string name="watch_address_required">Enter a Bitcoin address.</string>
+    <string name="watch_address_invalid">The Bitcoin address is invalid.</string>
+    <string name="watch_address_added">Watch-only address added.</string>
+    <string name="watch_address_already_present">Address is already being watched.</string>
+    <string name="watch_address_failed">Unable to add watch-only address: %1$s</string>
+    <string name="watched_addresses_title">Watched addresses</string>
+    <string name="watch_balance_total_zero">Watch-only total: 0 BTC</string>
+    <string name="watch_balance_total">Watch-only total: %1$s</string>
+    <string name="watch_confirmed_value">Confirmed: %1$s</string>
+    <string name="watch_pending_value">Pending: %1$s</string>
+    <string name="watch_address_empty">No watch-only addresses.</string>
+    <string name="watch_rescan_button">RESCAN WATCHED ADDRESSES</string>
+    <string name="watch_rescan_started">Watch-only rescan started. Wait for blockchain sync to complete.</string>
+    <string name="watch_rescan_failed">Watch-only rescan failed: %1$s</string>
+    <string name="watch_rescan_title">Rescan watch-only addresses</string>
+    <string name="watch_rescan_message">The wallet will rebuild its SPV scan from %1$s. This can take time because bitcoinj must rescan the blockchain through its normal Bitcoin P2P sync.</string>
+    <string name="watch_delete_button">DELETE SELECTED</string>
+    <string name="watch_delete_title">Delete selected watch-only addresses?</string>
+    <string name="watch_delete_message">The selected addresses will be removed from the watch list. This does not delete your private-key wallet.</string>
+    <string name="watch_deleted">Selected watch-only addresses deleted.</string>
+    <string name="watch_delete_failed">Unable to delete watch-only addresses: %1$s</string>
+
+</resources>
