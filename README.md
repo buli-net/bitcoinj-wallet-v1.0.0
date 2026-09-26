@@ -1,11 +1,9 @@
-# Bitcoin Wallet v44 – RBF Boost compile fix
+# Bitcoin Wallet v50 – Wallet Tools split
 
-Based on v43 Address Book / Contacts.
+Based on v49.
 
-Fixed bitcoinj 0.17.1 API incompatibilities in TransactionDetailActivity RBF boost:
-- Build replacement transaction with `new Transaction(NetworkParameters)` instead of the unsupported `(NetworkParameters, byte[])` constructor.
-- Copy inputs and outputs explicitly into the replacement transaction.
-- Cast transaction version to int for bitcoinj 0.17.1.
-- Preserve `TransactionOutput.setValue(Coin)` on the replacement change output.
+Wallet Tools was reorganized into a compact entry screen with three themed rows: Import WIF, Watch-only Wallet, and Wallet Utility. Each row opens its own page while preserving the existing wallet logic and UI behavior. The entry rows use Android native selectable ripple feedback and theme-derived colors.
 
-The source was checked structurally. Gradle compilation could not be executed in this environment because Gradle 5.6.4 was not cached and `services.gradle.org` was unreachable.
+The three former Wallet Tools cards were separated into their own activities/layouts. Main wallet, watch-only, Address Book, transaction detail, RBF, sync, backup, and security logic were not intentionally changed.
+
+Gradle compilation was attempted, but this environment could not download Gradle 5.6.4 because `services.gradle.org` was unreachable. The source and XML were structurally checked.
