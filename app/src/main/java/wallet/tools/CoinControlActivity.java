@@ -1,0 +1,132 @@
+package wallet.tools;
+
+import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
+import android.view.View;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import org.bitcoinj.core.TransactionOutput;
+import org.bitcoinj.kits.WalletAppKit;
+import org.bitcoinj.wallet.Wallet;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import wallet.main.MainActivityPresenter;
+import wallet.main.R;
+
+/** Selects specific wallet UTXOs for the next send. */
+public final class CoinControlActivity extends AppCompatActivity {
+
+    private LinearLayout outputsContainer;
+    private TextView totalText;
+    private final Set<String> selected = new HashSet<>();
+
+    @Override
+    protected void onCreate(Bundle state) {
+        super.onCreate(state);
+        setContentView(R.layout.activity_coin_control);
+
+        Toolbar toolbar = findViewById(R.id.toolbar_coin_control);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle(R.string.coin_control_title);
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
+        toolbar.setNavigationOnClickListener(v -> finish());
+
+        outputsContainer = findViewById(R.id.coinOutputsContainer);
+        totalText = findViewById(R.id.coinControlTotal);
+        Button clear = findViewById(R.id.clearCoinSelection);
+        Button apply = findViewById(R.id.applyCoinSelection);
+        clear.setOnClickListener(v -> {
+            selected.clear();
+            render();
+        });
+        apply.setOnClickListener(v -> {
+            CoinControl.setSelected(selected);
+            Toast.makeText(this, R.string.coin_selection_saved, Toast.LENGTH_SHORT).show();
+            finish();
+        });
+
+        selected.addAll(CoinControl.getSelected());
+        render();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (outputsContainer != null) {
+            render();
+        }
+    }
+
+    private void render() {
+        WalletAppKit kit = MainActivityPresenter.getActiveWalletAppKit();
+        if (kit == null || kit.wallet() == null) {
+            outputsContainer.removeAllViews();
+            totalText.setText(R.string.wallet_not_ready);
+            return;
+        }
+
+        Wallet wallet = kit.wallet();
+        List<TransactionOutput> outputs = wallet.getUnspents();
+        outputsContainer.removeAllViews();
+
+        long total = 0L;
+        for (TransactionOutput output : outputs) {
+            if (!output.isAvailableForSpending()) {
+                continue;
+            }
+
+            String key = CoinControl.key(output);
+            CheckBox box = new CheckBox(this);
+            box.setText(getString(
+                    R.string.coin_output_row,
+                    output.getParentTransactionHash().toString(),
+                    output.getIndex(),
+                    output.getValue().toFriendlyString(),
+                    Math.max(0, output.getParentTransactionDepthInBlocks())));
+            box.setTextIsSelectable(true);
+            box.setChecked(selected.contains(key));
+            box.setOnCheckedChangeListener((button, checked) -> {
+                if (checked) {
+                    selected.add(key);
+                } else {
+                    selected.remove(key);
+                }
+                updateTotal(outputs);
+            });
+            outputsContainer.addView(box);
+
+            if (selected.contains(key)) {
+                total += output.getValue().value;
+            }
+        }
+
+        if (outputsContainer.getChildCount() == 0) {
+            TextView empty = new TextView(this);
+            empty.setText(R.string.coin_control_empty);
+            outputsContainer.addView(empty);
+        }
+        totalText.setText(getString(R.string.coin_control_selected_total, org.bitcoinj.base.Coin.valueOf(total).toFriendlyString()));
+    }
+
+    private void updateTotal(List<TransactionOutput> outputs) {
+        long total = 0L;
+        for (TransactionOutput output : outputs) {
+            if (selected.contains(CoinControl.key(output))) {
+                total += output.getValue().value;
+            }
+        }
+        totalText.setText(getString(
+                R.string.coin_control_selected_total,
+                org.bitcoinj.base.Coin.valueOf(total).toFriendlyString()));
+    }
+}
