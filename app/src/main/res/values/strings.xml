@@ -7,7 +7,7 @@
     <string name="menu_send">Send</string>
     <string name="menu_sync">Sync &amp; Network</string>
     <string name="menu_backup_recovery">Backup &amp; Recovery</string>
-    <string name="menu_info">Info</string>
+    <string name="menu_about">About</string>
     <string name="wallet_title">Wallet</string>
     <string name="about_title">About</string>
     <string name="backup_title">Backup wallet</string>
@@ -199,12 +199,12 @@ Use the application responsibly and keep independent backups of your wallet.</st
     <string name="filter_received">Received</string>
     <string name="transactions_summary">%1$s • %2$s • showing %3$d of %4$d</string>
     <string name="transaction_limit_title">Transaction history</string>
-    <string name="transaction_limit_all">Show all transactions</string>
-    <string name="transaction_limit_10">Show 10 transactions per type</string>
-    <string name="transaction_limit_20">Show 20 transactions per type</string>
-    <string name="transaction_limit_30">Show 30 transactions per type</string>
-    <string name="transaction_limit_50">Show 50 transactions per type</string>
-    <string name="transaction_limit_100">Show 100 transactions per type</string>
+    <string name="transaction_limit_all">Show all</string>
+    <string name="transaction_limit_10">Show 10</string>
+    <string name="transaction_limit_20">Show 20</string>
+    <string name="transaction_limit_30">Show 30</string>
+    <string name="transaction_limit_50">Show 50</string>
+    <string name="transaction_limit_100">Show 100</string>
     <string name="transaction_limit_per_type">%1$d per type</string>
     <string name="fee_rate_initial">Fee rate: 5 sat/vB</string>
     <string name="wallet_start_failed_detailed">Bitcoin wallet could not start. Check Logcat with tag %1$s for the cause.</string>
@@ -272,12 +272,12 @@ Use the application responsibly and keep independent backups of your wallet.</st
     <string name="wallet_utilities_subtitle">Health and diagnostic information for the current wallet and blockchain state.</string>
     <string name="what_is_wif">WHAT IS WIF?</string>
     <string name="wif_short_explanation">WIF is the Wallet Import Format for a Bitcoin private key. It is sensitive: anyone who has it can spend the funds controlled by that key.</string>
-    <string name="wif_info_message">WIF (Wallet Import Format) is a text representation of a Bitcoin private key.
-
-Use it when you intentionally need to import an existing private key into this main wallet. Paste the WIF into the field above, then choose IMPORT PRIVATE KEY. The wallet converts it to the private key and stores it in the wallet.
-
-A WIF is not a receiving address and it is not a recovery phrase. It is secret spending authority for one private key.
-
+    <string name="wif_info_message">WIF (Wallet Import Format) is a text representation of a Bitcoin private key.\n
+\n
+Use it when you intentionally need to import an existing private key into this main wallet. Paste the WIF into the field above, then choose IMPORT PRIVATE KEY. The wallet converts it to the private key and stores it in the wallet.\n
+\n
+A WIF is not a receiving address and it is not a recovery phrase. It is secret spending authority for one private key.\n
+\n
 Never send a WIF to anyone, put it in screenshots, chat messages, cloud notes, or logs. Anyone who obtains it may be able to spend the Bitcoin controlled by that key. Only use WIF import when you know exactly where the private key came from and why it needs to be imported.</string>
     <string name="coin_control">COINS</string>
     <string name="select_coin">Select UTXO</string>
