@@ -39,7 +39,7 @@ android {
         exclude 'DebugProbesKt.bin'
         exclude '**/*.proto'
 
-
+        exclude 'core/**'
         exclude 'kotlin/**'
         exclude 'kotlinx/**'
         exclude 'commonMain/**'
@@ -52,11 +52,16 @@ android {
         exclude 'okhttp3/internal/publicsuffix/*'
         exclude 'org/bitcoinj/crypto/mnemonic/wordlist/english.txt'
         exclude 'org/bitcoinj/crypto/cacerts'
-        
+        exclude 'org.bitcoin.*.checkpoints.txt'
     }
 }
 
 configurations.all {
+    
+    all*.exclude group: 'androidx.viewpager', module: 'viewpager'
+    all*.exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+    all*.exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+    
     exclude group: 'com.google.code.findbugs', module: 'jsr305'
     exclude group: 'com.google.code.findbugs', module: 'annotations'
     exclude group: 'net.jcip', module: 'jcip-annotations'
