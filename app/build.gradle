@@ -38,7 +38,7 @@ compileOptions {
         exclude 'META-INF/**/coroutines.pro'
         exclude 'DebugProbesKt.bin'
         exclude '**/*.proto'
-        exclude '**/*.proto'
+    
     exclude 'core/**'
     exclude 'kotlin/**'
     exclude 'kotlinx/**'
