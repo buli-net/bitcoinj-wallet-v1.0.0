@@ -63,7 +63,7 @@ dependencies {
         exclude group: 'com.google.guava'
     } 
 
-    implementation 'com.google.zxing:core:3.4.1'
+//    implementation 'com.google.zxing:core:3.4.1'
 
     implementation 'com.github.kenglxn.QRGen:android:2.6.0'
 
