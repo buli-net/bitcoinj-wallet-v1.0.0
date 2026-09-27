@@ -8,7 +8,7 @@ defaultConfig {
     applicationId "wallet.main"
 
     minSdkVersion 26
-    targetSdkVersion 36
+    targetSdkVersion 28
 
     versionCode 1
     versionName "1.0"
