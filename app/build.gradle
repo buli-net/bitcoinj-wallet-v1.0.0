@@ -70,11 +70,11 @@ dependencies {
     implementation('org.bitcoinj:bitcoinj-core:0.17.1') {
         exclude group: 'com.google.code.findbugs'
         exclude group: 'net.jcip'
-        exclude group: 'com.google.guava'
+     //   exclude group: 'com.google.guava'
       //  exclude group: 'org.slf4j'
     }
 
     implementation 'com.google.protobuf:protobuf-javalite:4.33.4'
-    implementation 'com.google.guava:guava:27.0.1-jre'
+ //   implementation 'com.google.guava:guava:27.0.1-jre'
     implementation 'org.slf4j:slf4j-android:1.7.36'
 }
