@@ -70,7 +70,7 @@ dependencies {
     implementation('org.bitcoinj:bitcoinj-core:0.17.1') {
         exclude group: 'com.google.code.findbugs'
         exclude group: 'net.jcip'
-     //   exclude group: 'com.google.guava'
+        exclude group: 'com.google.guava'
       //  exclude group: 'org.slf4j'
     }
 
