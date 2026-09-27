@@ -2,13 +2,13 @@ apply plugin: 'com.android.application'
 
 android {
 namespace 'wallet.main'
-compileSdkVersion 36
+compileSdkVersion 33
 
 defaultConfig {
     applicationId "wallet.main"
 
     minSdkVersion 21
-    targetSdkVersion 36
+    targetSdkVersion 33
 
     versionCode 1
     versionName "1.0"
