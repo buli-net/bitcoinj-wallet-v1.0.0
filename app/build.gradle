@@ -18,7 +18,7 @@ android {
         release {
             minifyEnabled true
             shrinkResources true
-
+            crunchPngs false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
                     'proguard-rules.pro'
         }
@@ -62,9 +62,9 @@ configurations.all {
     all*.exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
     all*.exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
     
-    exclude group: 'com.google.code.findbugs', module: 'jsr305'
-    exclude group: 'com.google.code.findbugs', module: 'annotations'
-    exclude group: 'net.jcip', module: 'jcip-annotations'
+    all*.exclude group: 'com.google.code.findbugs', module: 'jsr305'
+    all*.exclude group: 'com.google.code.findbugs', module: 'annotations'
+    all*.exclude group: 'net.jcip', module: 'jcip-annotations'
 
 //    resolutionStrategy {
 //        force 'com.google.guava:guava:27.0.1-jre'
