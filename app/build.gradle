@@ -65,7 +65,7 @@ dependencies {
 
     implementation 'com.google.zxing:core:3.4.1'
 
-  //  implementation 'com.github.kenglxn.QRGen:android:2.6.0'
+    implementation 'com.github.kenglxn.QRGen:android:2.6.0'
 
     implementation('org.bitcoinj:bitcoinj-core:0.17.1') {
         exclude group: 'com.google.code.findbugs'
