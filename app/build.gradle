@@ -61,7 +61,7 @@ exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
 exclude group: 'com.google.code.findbugs', module: 'jsr305'
 exclude group: 'com.google.code.findbugs', module: 'annotations'
 exclude group: 'net.jcip', module: 'jcip-annotations'
-exclude group: 'org.slf4j', module: 'slf4j-api'
+//exclude group: 'org.slf4j', module: 'slf4j-api'
 }
 
 dependencies {
