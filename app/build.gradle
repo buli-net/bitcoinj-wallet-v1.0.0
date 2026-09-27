@@ -21,8 +21,6 @@ android {
             crunchPngs false
 
             proguardFiles getDefaultProguardFile('proguard-android.txt'),
-    
-        //    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
                     'proguard-rules.pro'
         }
     }
@@ -40,53 +38,30 @@ android {
         exclude 'META-INF/kotlin-project-structure-metadata.json'
         exclude 'META-INF/**/coroutines.pro'
         exclude 'DebugProbesKt.bin'
-        exclude '**/*.proto'
-
-        exclude 'core/**'
-        exclude 'kotlin/**'
-        exclude 'kotlinx/**'
-        exclude 'commonMain/**'
-        exclude 'nativeMain/default/**'
-        exclude 'nativeOtherMain/default/**'
-        exclude 'nonJvmMain/default/**'
-        exclude 'concurrentMain/default/**'
-        exclude 'linuxMain/default/**'
-        exclude 'org/bouncycastle/**/*.properties'
-        exclude 'okhttp3/internal/publicsuffix/*'
-        exclude 'org/bitcoinj/crypto/mnemonic/wordlist/english.txt'
-        exclude 'org/bitcoinj/crypto/cacerts'
-        exclude 'org.bitcoin.*.checkpoints.txt'
     }
 }
 
 configurations.all {
-    
-    all*.exclude group: 'androidx.viewpager', module: 'viewpager'
-    all*.exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
-    all*.exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
-    
-    all*.exclude group: 'com.google.code.findbugs', module: 'jsr305'
-    all*.exclude group: 'com.google.code.findbugs', module: 'annotations'
-    all*.exclude group: 'net.jcip', module: 'jcip-annotations'
 
-//    resolutionStrategy {
-//        force 'com.google.guava:guava:27.0.1-jre'
-      //  force 'org.slf4j:slf4j-api:1.7.36'
-   // }
+    exclude group: 'androidx.viewpager', module: 'viewpager'
+
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+
+    exclude group: 'com.google.code.findbugs', module: 'jsr305'
+    exclude group: 'com.google.code.findbugs', module: 'annotations'
+    exclude group: 'net.jcip', module: 'jcip-annotations'
 }
 
 dependencies {
     implementation 'com.android.support:appcompat-v7:28.0.0'
-  //  implementation 'com.android.support:support-v4:28.0.0'
     implementation 'com.android.support:recyclerview-v7:28.0.0'
 
     implementation('com.journeyapps:zxing-android-embedded:3.6.0') {
         exclude group: 'com.google.code.findbugs'
         exclude group: 'net.jcip'
         exclude group: 'com.google.guava'
-    } 
-
-//    implementation 'com.google.zxing:core:3.4.1'
+    }
 
     implementation 'com.github.kenglxn.QRGen:android:2.6.0'
 
@@ -98,7 +73,6 @@ dependencies {
     }
 
     implementation 'com.google.protobuf:protobuf-javalite:4.33.4'
-   // implementation 'com.google.guava:guava:27.0.1-jre'
     implementation 'com.google.guava:guava:33.4.0-android'
     implementation 'org.slf4j:slf4j-android:1.7.36'
 }
