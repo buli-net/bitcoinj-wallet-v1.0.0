@@ -47,17 +47,17 @@
 
         <menu>
             <item
-                android:id="@id/menuImportWif"
+                android:id="@+id/menuImportWif"
                 android:title="@string/wallet_tool_import_wif"
                 android:icon="@drawable/ic_menu_key_24dp" />
 
             <item
-                android:id="@id/menuWatchOnlyWallet"
+                android:id="@+id/menuWatchOnlyWallet"
                 android:title="@string/wallet_tool_watch_only"
                 android:icon="@drawable/ic_menu_watch_only_24dp" />
 
             <item
-                android:id="@id/menuWalletUtility"
+                android:id="@+id/menuWalletUtility"
                 android:title="@string/wallet_tool_utility"
                 android:icon="@drawable/ic_menu_tools_24dp" />
         </menu>
