@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <item name="menuImportWif" type="id" />
-    <item name="menuWatchOnlyWallet" type="id" />
-    <item name="menuWalletUtility" type="id" />
-</resources>
