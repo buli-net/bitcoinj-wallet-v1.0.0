@@ -3,8 +3,9 @@ buildscript {
         google()
         mavenCentral()
     }
+
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.6.4'
+        classpath 'com.android.tools.build:gradle:7.4.2'
     }
 }
 
@@ -12,7 +13,6 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // Release dependency source used by the QR generation library.
         maven { url 'https://jitpack.io' }
     }
 }
@@ -20,4 +20,3 @@ allprojects {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
-
