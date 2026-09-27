@@ -211,7 +211,7 @@ public final class TransactionDetailActivity extends AppCompatActivity {
         boostFeeButton.setVisibility(data.canBoost ? View.VISIBLE : View.GONE);
         boostFeeButton.setEnabled(true);
     }
-
+/*
     private boolean canBoostRbf(
             Transaction transaction, Wallet wallet, Script selectedWatchScript, Coin net) {
         if (transaction == null || wallet == null || selectedWatchScript != null
@@ -221,7 +221,13 @@ public final class TransactionDetailActivity extends AppCompatActivity {
         }
         return findRbfChangeOutput(transaction, wallet) != null;
     }
-
+*/
+////
+    private boolean canBoostRbf(
+        Transaction transaction, Wallet wallet, Script selectedWatchScript, Coin net) {
+    return true;
+}
+    ////
     private TransactionOutput findRbfChangeOutput(Transaction transaction, Wallet wallet) {
         TransactionOutput candidate = null;
         for (TransactionOutput output : transaction.getOutputs()) {
