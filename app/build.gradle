@@ -72,5 +72,6 @@ implementation 'com.github.kenglxn.QRGen:android:2.6.0'
 implementation 'org.bitcoinj:bitcoinj-core:0.17.1'
 implementation 'com.google.protobuf:protobuf-javalite:4.33.4'
 implementation 'com.google.guava:guava:33.4.0-android'
-implementation 'org.slf4j:slf4j-android:1.7.36'
+implementation 'org.slf4j:slf4j-android:2.0.16'
+  //  implementation 'org.slf4j:slf4j-android:1.7.36'
 }
