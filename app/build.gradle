@@ -39,6 +39,21 @@ packagingOptions {
     exclude 'META-INF/**/coroutines.pro'
     exclude 'DebugProbesKt.bin'
 
+    exclude '**/*.proto'
+    exclude 'core/**'
+    exclude 'kotlin/**'
+    exclude 'kotlinx/**'
+    exclude 'commonMain/**'
+    exclude 'nativeMain/default/**'
+    exclude 'nativeOtherMain/default/**'
+    exclude 'nonJvmMain/default/**'
+    exclude 'concurrentMain/default/**'
+    exclude 'linuxMain/default/**'
+    exclude 'org/bouncycastle/**/*.properties'
+    exclude 'okhttp3/internal/publicsuffix/*'
+    exclude 'org/bitcoinj/crypto/mnemonic/wordlist/english.txt'
+    exclude 'org/bitcoinj/crypto/cacerts'
+    exclude 'org.bitcoin.*.checkpoints.txt'
     
 }
 
