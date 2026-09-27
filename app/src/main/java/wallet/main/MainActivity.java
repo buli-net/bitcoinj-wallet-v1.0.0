@@ -315,7 +315,7 @@ public class MainActivity extends AppCompatActivity
             case R.id.menuWalletUtility:
                 startActivity(new Intent(this, wallet.tools.WalletUtilityActivity.class));
                 return true;
-            case R.id.menuInfo:
+            case R.id.menuAbout:
                 startActivity(new Intent(this, wallet.about.AboutActivity.class));
                 return true;
             case R.id.menuSync:
