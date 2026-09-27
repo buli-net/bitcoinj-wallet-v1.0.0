@@ -48,7 +48,7 @@ configurations.all {
 
     resolutionStrategy {
         force 'com.google.guava:guava:27.0.1-jre'
-        force 'org.slf4j:slf4j-api:1.7.36'
+       // force 'org.slf4j:slf4j-api:1.7.36'
     }
 }
 
@@ -71,10 +71,10 @@ dependencies {
         exclude group: 'com.google.code.findbugs'
         exclude group: 'net.jcip'
         exclude group: 'com.google.guava'
-        exclude group: 'org.slf4j'
+      //  exclude group: 'org.slf4j'
     }
 
     implementation 'com.google.protobuf:protobuf-javalite:4.33.4'
     implementation 'com.google.guava:guava:27.0.1-jre'
-    implementation 'org.slf4j:slf4j-android:1.7.36'
+  //  implementation 'org.slf4j:slf4j-android:1.7.36'
 }
