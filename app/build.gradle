@@ -60,7 +60,7 @@ dependencies {
     implementation('com.journeyapps:zxing-android-embedded:3.6.0') {
         exclude group: 'com.google.code.findbugs'
         exclude group: 'net.jcip'
-        exclude group: 'com.google.guava'
+       // exclude group: 'com.google.guava'
     } 
 
 //    implementation 'com.google.zxing:core:3.4.1'
@@ -71,7 +71,7 @@ dependencies {
         exclude group: 'com.google.code.findbugs'
         exclude group: 'net.jcip'
         exclude group: 'com.google.guava'
-      //  exclude group: 'org.slf4j'
+        exclude group: 'org.slf4j'
     }
 
     implementation 'com.google.protobuf:protobuf-javalite:4.33.4'
