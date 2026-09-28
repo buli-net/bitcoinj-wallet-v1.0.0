@@ -114,7 +114,7 @@ public final class WatchOnlyWalletActivity extends AppCompatActivity {
                                 final Instant finalScanFrom = scanFrom;
                                 new android.os.Handler(getMainLooper()).postDelayed(
                                         () -> rescanWatchedAddresses(finalScanFrom, false),
-                                        1000L);
+                                        3000L);
                             }
                         }
                     } else {
