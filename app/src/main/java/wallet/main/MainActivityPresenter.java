@@ -4,7 +4,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
-import android.widget.Toast;
 
 import wallet.Constants;
 import wallet.model.TransactionItem;
@@ -36,6 +35,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.FileOutputStream;
 import java.io.FileInputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +54,11 @@ public class MainActivityPresenter
     private static volatile MainActivityPresenter activePresenter;
 
     private static final String TAG = "BitcoinWalletSync";
+
+    private static final String WATCH_RESCAN_CRASH_FILE = "watch-rescan-crash.txt";
+
+    private static final AtomicBoolean CRASH_HANDLER_INSTALLED =
+            new AtomicBoolean(false);
 
     private static final int MAX_CONNECTIONS = 8;
 
@@ -129,6 +136,100 @@ public class MainActivityPresenter
                 );
 
         view.setPresenter(this);
+        installCrashReportHandler();
+        showPendingCrashReport();
+    }
+
+    private File getCrashReportFile() {
+        return new File(applicationContext.getFilesDir(), WATCH_RESCAN_CRASH_FILE);
+    }
+
+    private void installCrashReportHandler() {
+        if (!CRASH_HANDLER_INSTALLED.compareAndSet(false, true)) {
+            return;
+        }
+
+        final Thread.UncaughtExceptionHandler previous =
+                Thread.getDefaultUncaughtExceptionHandler();
+
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            writeCrashReport(thread, throwable);
+            if (previous != null) {
+                previous.uncaughtException(thread, throwable);
+            }
+        });
+    }
+
+    private void writeCrashReport(Thread thread, Throwable throwable) {
+        File report = getCrashReportFile();
+        try (PrintWriter out = new PrintWriter(
+                new OutputStreamWriter(
+                        new FileOutputStream(report, false),
+                        StandardCharsets.UTF_8))) {
+            out.println("BitcoinWalletSync crash report");
+            out.println("time=" + java.time.Instant.now());
+            out.println("thread=" + (thread == null ? "unknown" : thread.getName()));
+            out.println("threadId=" + (thread == null ? -1L : thread.getId()));
+            out.println();
+            throwable.printStackTrace(out);
+            out.flush();
+        } catch (Throwable reportError) {
+            Log.e(TAG, "Unable to write crash report", reportError);
+        }
+    }
+
+    private void showPendingCrashReport() {
+        File report = getCrashReportFile();
+        if (!report.exists() || report.length() == 0L) {
+            return;
+        }
+
+        // Delay until the Activity window is ready. Keep the report on disk so it can
+        // still be inspected if the app crashes again before the dialog is dismissed.
+        mainHandler.postDelayed(() -> {
+            if (!report.exists()) {
+                return;
+            }
+            try {
+                String reportText = readTextFile(report);
+                if (reportText == null || reportText.trim().isEmpty()) {
+                    return;
+                }
+
+                android.widget.TextView message = new android.widget.TextView(applicationContext);
+                int padding = (int) (16 * applicationContext.getResources().getDisplayMetrics().density);
+                message.setPadding(padding, padding, padding, padding);
+                message.setTextIsSelectable(true);
+                message.setText(reportText);
+
+                android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(view.getActivityContext())
+                        .setTitle("App crash report")
+                        .setView(message)
+                        .setPositiveButton("OK", null)
+                        .setNeutralButton("Xóa báo cáo", (d, which) -> {
+                            if (!report.delete()) {
+                                Log.w(TAG, "Unable to delete crash report");
+                            }
+                        })
+                        .create();
+                dialog.show();
+            } catch (Throwable displayError) {
+                Log.e(TAG, "Unable to display crash report", displayError);
+            }
+        }, 1200L);
+    }
+
+    private String readTextFile(File file) throws IOException {
+        try (FileInputStream input = new FileInputStream(file)) {
+            byte[] data = new byte[(int) Math.min(file.length(), 512 * 1024L)];
+            int offset = 0;
+            while (offset < data.length) {
+                int read = input.read(data, offset, data.length - offset);
+                if (read < 0) break;
+                offset += read;
+            }
+            return new String(data, 0, offset, StandardCharsets.UTF_8);
+        }
     }
 
     public void attachView(MainActivityContract.MainActivityView newView) {
@@ -1451,12 +1552,6 @@ public class MainActivityPresenter
                     }
                 }
                 Log.e(TAG, "Watch-only rescan failed", error);
-                runOnUi(() -> Toast.makeText(
-                        applicationContext,
-                        "Watch rescan error: " + error.getClass().getSimpleName() +
-                                "\n" + String.valueOf(error.getMessage()),
-                        Toast.LENGTH_LONG
-                ).show());
                 synchronized (kitLock) {
                     walletAppKit = null;
                     walletReady = false;
