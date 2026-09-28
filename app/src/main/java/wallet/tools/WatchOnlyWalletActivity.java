@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.Set;
 
 public final class WatchOnlyWalletActivity extends AppCompatActivity {
-    private EditText watchAddressInput; private EditText watchDateInput; private Button addWatchAddressButton; private Button rescanWatchedButton; private Button deleteWatchedButton; private LinearLayout watchedAddressList; private TextView watchedBalanceSummary; private Wallet watchedWallet; private WalletChangeEventListener walletChangeListener; private final Set<Script> selectedWatchedScripts = new HashSet<>(); private Runnable syncStateListener;
+    private EditText watchAddressInput; private EditText watchDateInput; private Button addWatchAddressButton; private Button rescanWatchedButton; private Button deleteWatchedButton; private LinearLayout watchedAddressList; private TextView watchedBalanceSummary; private Wallet watchedWallet; private WalletChangeEventListener walletChangeListener; private final Set<Script> selectedWatchedScripts = new HashSet<>();
 
     private Wallet getWallet(){ WalletAppKit kit=MainActivityPresenter.getActiveWalletAppKit(); return kit==null?null:kit.wallet(); }
     private NetworkParameters getParameters(){ return MainActivityPresenter.getActiveParameters(); }
@@ -43,10 +43,10 @@ public final class WatchOnlyWalletActivity extends AppCompatActivity {
         if(getSupportActionBar()!=null){getSupportActionBar().setTitle(R.string.watch_only_title);getSupportActionBar().setDisplayHomeAsUpEnabled(true);}
         toolbar.setNavigationOnClickListener(v->finish());
         watchAddressInput=findViewById(R.id.watchAddressInput); watchDateInput=findViewById(R.id.watchDateInput); addWatchAddressButton=findViewById(R.id.addWatchAddressButton); rescanWatchedButton=findViewById(R.id.rescanWatchedButton); deleteWatchedButton=findViewById(R.id.deleteWatchedButton); watchedBalanceSummary=findViewById(R.id.watchedBalanceSummary); watchedAddressList=findViewById(R.id.watchedAddressList);
-        addWatchAddressButton.setOnClickListener(v->addWatchAddress()); rescanWatchedButton.setOnClickListener(v->rescanWatchedAddresses()); deleteWatchedButton.setOnClickListener(v->deleteSelectedWatchedAddresses()); attachWalletListener(); attachSyncListener(); refreshWatchedAddresses();
+        addWatchAddressButton.setOnClickListener(v->addWatchAddress()); rescanWatchedButton.setOnClickListener(v->rescanWatchedAddresses()); deleteWatchedButton.setOnClickListener(v->deleteSelectedWatchedAddresses()); attachWalletListener(); refreshWatchedAddresses();
     }
-    @Override protected void onResume(){super.onResume();attachWalletListener();attachSyncListener();refreshWatchedAddresses();}
-    @Override protected void onPause(){detachSyncListener();detachWalletListener();super.onPause();}
+    @Override protected void onResume(){super.onResume();attachWalletListener();refreshWatchedAddresses();}
+    @Override protected void onPause(){detachWalletListener();super.onPause();}
 
     private void addWatchAddress() {
         String encoded = watchAddressInput.getText().toString().trim();
@@ -223,26 +223,6 @@ public final class WatchOnlyWalletActivity extends AppCompatActivity {
                 })
                 .show();
     }
-    private void attachSyncListener() {
-        if (syncStateListener != null) {
-            return;
-        }
-        MainActivityPresenter presenter = MainActivityPresenter.getActivePresenter();
-        if (presenter == null) {
-            return;
-        }
-        syncStateListener = () -> runOnUiThread(this::refreshWatchedAddresses);
-        presenter.addSyncStateListener(syncStateListener);
-    }
-
-    private void detachSyncListener() {
-        MainActivityPresenter presenter = MainActivityPresenter.getActivePresenter();
-        if (presenter != null && syncStateListener != null) {
-            presenter.removeSyncStateListener(syncStateListener);
-        }
-        syncStateListener = null;
-    }
-
     private void attachWalletListener() {
         Wallet wallet = getWallet();
         if (wallet == watchedWallet) {

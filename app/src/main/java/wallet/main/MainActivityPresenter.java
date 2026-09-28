@@ -1386,18 +1386,39 @@ public class MainActivityPresenter
                     throw new IOException("Wallet is not available");
                 }
 
-                // Do not stop/restart WalletAppKit here. A fresh wallet crashes during the
-                // first rescan because bitcoinj is still initializing its SPV/autosave state.
-                // Watch-only scripts already contain their birth time, so keep them intact.
-                List<org.bitcoinj.script.Script> scripts =
-                        new ArrayList<>(wallet.getWatchedScripts());
-
-                wallet.saveToFile(walletFile);
-
-                // Reset transactions so the wallet will discover transactions again.
-                // Keep the running kit and peer group alive.
+                // Keep WalletAppKit alive. Reset only wallet transaction state,
+                // then explicitly trigger a new chain download.
+                // Restarting WalletAppKit was the source of the first-rescan crash.
                 wallet.reset();
                 wallet.saveToFile(walletFile);
+
+                lastChainHeight = -1;
+                lastPercent = 0;
+                downloadFinished = false;
+                notifySyncStateChanged();
+
+                PeerGroup peers = kit.peerGroup();
+                if (peers == null) {
+                    throw new IOException("PeerGroup is not available");
+                }
+
+                peers.startBlockChainDownload(new DownloadProgressTracker() {
+                    @Override
+                    protected void progress(double pct, int blocksSoFar, Instant date) {
+                        lastPercent = (int) Math.max(0, Math.min(100, Math.round(pct)));
+                        lastChainHeight = Math.max(lastChainHeight, blocksSoFar);
+                        notifySyncStateChanged();
+                        notifyWalletUpdated();
+                    }
+
+                    @Override
+                    protected void doneDownload() {
+                        downloadFinished = true;
+                        lastPercent = 100;
+                        notifySyncStateChanged();
+                        notifyWalletUpdated();
+                    }
+                });
 
             } catch (Exception error) {
                 failure = error;
@@ -1408,7 +1429,7 @@ public class MainActivityPresenter
             if (finished != null) {
                 runOnUi(() -> finished.accept(result));
             }
-        }).start();
+        }, "wallet-watch-rescan").start();
     }
 
     public void saveWalletNow() throws IOException {
