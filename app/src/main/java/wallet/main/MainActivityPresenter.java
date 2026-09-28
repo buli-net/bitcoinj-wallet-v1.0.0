@@ -4,6 +4,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
+import android.widget.Toast;
 
 import wallet.Constants;
 import wallet.model.TransactionItem;
@@ -1409,8 +1410,7 @@ public class MainActivityPresenter
                 // oldKit.wallet() after awaitTerminated() throws:
                 // "cannot call until startup is complete".
                 Wallet wallet = oldKit.wallet();
-                List<org.bitcoinj.script.Script> oldScripts =
-                        new ArrayList<>(wallet.getWatchedScripts());
+                List<org.bitcoinj.script.Script> oldScripts = wallet.getWatchedScripts();
                 safetyCopy = createWalletSafetyCopy("watch-rescan");
 
                 // Stop the running kit BEFORE rewriting the wallet. This prevents its autosave/shutdown
@@ -1451,6 +1451,12 @@ public class MainActivityPresenter
                     }
                 }
                 Log.e(TAG, "Watch-only rescan failed", error);
+                runOnUi(() -> Toast.makeText(
+                        applicationContext,
+                        "Watch rescan error: " + error.getClass().getSimpleName() +
+                                "\n" + String.valueOf(error.getMessage()),
+                        Toast.LENGTH_LONG
+                ).show());
                 synchronized (kitLock) {
                     walletAppKit = null;
                     walletReady = false;
