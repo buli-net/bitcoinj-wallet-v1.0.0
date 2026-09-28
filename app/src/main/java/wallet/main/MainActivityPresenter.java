@@ -1372,64 +1372,131 @@ public class MainActivityPresenter
             final java.util.function.Consumer<Exception> finished) {
 
         new Thread(() -> {
+            WalletAppKit oldKit = null;
             Exception failure = null;
+            File safetyCopy = null;
+
+            // A watch-only rescan replaces the running WalletAppKit. Serialize it with
+            // the normal watchdog/reconnect path so the kit cannot be restarted twice
+            // while the wallet file and SPV chain are being replaced.
+            if (!restartInProgress.compareAndSet(false, true)) {
+                failure = new IOException("Wallet is already restarting");
+                if (finished != null) {
+                    final Exception result = failure;
+                    runOnUi(() -> finished.accept(result));
+                }
+                return;
+            }
+
             try {
                 Context.propagate(Context.getOrCreate(parameters));
 
-                WalletAppKit kit = walletAppKit;
-                if (kit == null || !kit.isRunning()) {
+                synchronized (kitLock) {
+                    oldKit = walletAppKit;
+                    walletAppKit = null;
+                    walletReady = false;
+                    downloadFinished = false;
+                    lastPercent = -1;
+                    lastChainHeight = -1;
+                }
+
+                if (oldKit == null) {
                     throw new IOException("WalletAppKit is not running");
                 }
 
-                Wallet wallet = kit.wallet();
-                if (wallet == null) {
-                    throw new IOException("Wallet is not available");
+                // WalletAppKit.wallet() is only accessible while the kit is STARTING/RUNNING.
+                // Capture the wallet and its watched scripts BEFORE stopping the kit. Calling
+                // oldKit.wallet() after awaitTerminated() throws:
+                // "cannot call until startup is complete".
+                Wallet wallet = oldKit.wallet();
+                List<org.bitcoinj.script.Script> oldScripts =
+                        new ArrayList<>(wallet.getWatchedScripts());
+                safetyCopy = createWalletSafetyCopy("watch-rescan");
+
+                // Stop the running kit BEFORE rewriting the wallet. This prevents its autosave/shutdown
+                // path from writing the pre-rescan state back over our reset wallet.
+                oldKit.stopAsync().awaitTerminated();
+                List<org.bitcoinj.script.Script> rescannedScripts = new ArrayList<>();
+                for (org.bitcoinj.script.Script script : oldScripts) {
+                    // Preserve the exact output script bytes. Only replace the creation timestamp used by
+                    // bitcoinj for fast-catchup/scanning. This avoids converting a script through Address and
+                    // accidentally changing an uncommon script form.
+                    rescannedScripts.add(
+                            org.bitcoinj.script.Script.parse(script.program(), scanFrom));
                 }
 
-                // Keep WalletAppKit alive. Reset only wallet transaction state,
-                // then explicitly trigger a new chain download.
-                // Restarting WalletAppKit was the source of the first-rescan crash.
+                wallet.removeWatchedScripts(oldScripts);
+                wallet.addWatchedScripts(rescannedScripts);
                 wallet.reset();
                 wallet.saveToFile(walletFile);
 
-                lastChainHeight = -1;
-                lastPercent = 0;
-                downloadFinished = false;
-                notifySyncStateChanged();
-
-                PeerGroup peers = kit.peerGroup();
-                if (peers == null) {
-                    throw new IOException("PeerGroup is not available");
+                File chainFile =
+                        new File(
+                                walletDir,
+                                Constants.WALLET_NAME + ".spvchain");
+                if (chainFile.exists() && !chainFile.delete()) {
+                    throw new IOException("Unable to reset SPV chain file");
                 }
 
-                peers.startBlockChainDownload(new DownloadProgressTracker() {
-                    @Override
-                    protected void progress(double pct, int blocksSoFar, Instant date) {
-                        lastPercent = (int) Math.max(0, Math.min(100, Math.round(pct)));
-                        lastChainHeight = Math.max(lastChainHeight, blocksSoFar);
-                        notifySyncStateChanged();
-                        notifyWalletUpdated();
-                    }
-
-                    @Override
-                    protected void doneDownload() {
-                        downloadFinished = true;
-                        lastPercent = 100;
-                        notifySyncStateChanged();
-                        notifyWalletUpdated();
-                    }
-                });
-
+                shuttingDown = false;
+                autoRestartCount = 0;
+                startWalletKit();
             } catch (Exception error) {
                 failure = error;
+                if (safetyCopy != null && safetyCopy.exists()) {
+                    try {
+                        copyFile(safetyCopy, walletFile);
+                    } catch (Exception restoreError) {
+                        Log.e(TAG, "Unable to restore watch-rescan safety copy", restoreError);
+                    }
+                }
                 Log.e(TAG, "Watch-only rescan failed", error);
+                synchronized (kitLock) {
+                    walletAppKit = null;
+                    walletReady = false;
+                }
+                if (!shuttingDown) {
+                    try {
+                        startWalletKit();
+                    } catch (Exception restartError) {
+                        Log.e(TAG, "Unable to restart WalletAppKit after watch-only rescan failure", restartError);
+                    }
+                }
+            } finally {
+                restartInProgress.set(false);
+                final Exception result = failure;
+                if (finished != null) {
+                    runOnUi(() -> finished.accept(result));
+                }
             }
+        }, "bitcoinj-watch-rescan").start();
+    }
 
-            final Exception result = failure;
-            if (finished != null) {
-                runOnUi(() -> finished.accept(result));
+    private File createWalletSafetyCopy(String reason) throws IOException {
+        if (!walletFile.exists()) {
+            throw new IOException("Wallet file does not exist");
+        }
+        File dir = new File(walletDir, "backup-safety");
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new IOException("Unable to create wallet safety directory");
+        }
+        String stamp = new java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US)
+                .format(new java.util.Date());
+        File target = new File(dir, Constants.WALLET_NAME + "-" + reason + "-" + stamp + ".wallet");
+        copyFile(walletFile, target);
+        return target;
+    }
+
+    private void copyFile(File source, File target) throws IOException {
+        try (FileInputStream input = new FileInputStream(source);
+             FileOutputStream output = new FileOutputStream(target)) {
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = input.read(buffer)) != -1) {
+                output.write(buffer, 0, count);
             }
-        }, "wallet-watch-rescan").start();
+            output.flush();
+        }
     }
 
     public void saveWalletNow() throws IOException {
