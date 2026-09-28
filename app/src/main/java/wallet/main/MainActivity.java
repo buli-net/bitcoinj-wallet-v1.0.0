@@ -127,8 +127,9 @@ public class MainActivity extends AppCompatActivity
                 text = "Unable to read crash report: " + error;
             }
 
+            final String reportText = text;
             final TextView reportView = new TextView(this);
-            reportView.setText(text);
+            reportView.setText(reportText);
             reportView.setTextIsSelectable(true);
             reportView.setPadding(32, 16, 32, 16);
 
@@ -141,7 +142,7 @@ public class MainActivity extends AppCompatActivity
                                 (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
                         if (clipboard != null) {
                             clipboard.setPrimaryClip(ClipData.newPlainText(
-                                    "BitcoinWalletSync crash report", text));
+                                    "BitcoinWalletSync crash report", reportText));
                             Toast.makeText(this, "Crash report copied", Toast.LENGTH_SHORT).show();
                         }
                     })
