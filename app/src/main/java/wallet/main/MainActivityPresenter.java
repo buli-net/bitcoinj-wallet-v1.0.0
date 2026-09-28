@@ -1409,7 +1409,7 @@ public class MainActivityPresenter
                 // oldKit.wallet() after awaitTerminated() throws:
                 // "cannot call until startup is complete".
                 Wallet wallet = oldKit.wallet();
-                List<org.bitcoinj.script.Script> oldScripts = wallet.getWatchedScripts();
+                List<org.bitcoinj.script.Script> oldScripts = new ArrayList<>(wallet.getWatchedScripts());
                 safetyCopy = createWalletSafetyCopy("watch-rescan");
 
                 // Stop the running kit BEFORE rewriting the wallet. This prevents its autosave/shutdown
@@ -1420,13 +1420,19 @@ public class MainActivityPresenter
                     // Preserve the exact output script bytes. Only replace the creation timestamp used by
                     // bitcoinj for fast-catchup/scanning. This avoids converting a script through Address and
                     // accidentally changing an uncommon script form.
-                    rescannedScripts.add(
-                            org.bitcoinj.script.Script.parse(script.program(), scanFrom));
+                    rescannedScripts.add(script);
                 }
 
                 wallet.removeWatchedScripts(oldScripts);
                 wallet.addWatchedScripts(rescannedScripts);
-                wallet.reset();
+
+                // Do not reset an empty/new watch-only wallet during the first rescan.
+                // A fresh wallet can still be initializing its internal state and
+                // bitcoinj reset may race with WalletAppKit startup.
+                if (!rescannedScripts.isEmpty()) {
+                    wallet.reset();
+                }
+
                 wallet.saveToFile(walletFile);
 
                 File chainFile =
