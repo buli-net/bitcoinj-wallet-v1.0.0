@@ -96,6 +96,3 @@
 -dontnote com.google.common.io.TempFileCreator
 -dontnote com.google.common.io.TempFileCreator$JavaNioCreator
 
-# SLF4J Android
-
--keep class org.slf4j.impl.** { *; }
