@@ -7,13 +7,10 @@ import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 
-/**
- * Generates QR code bitmaps from wallet data.
- */
+/** Creates QR bitmaps from wallet data. */
 public final class QrCodeGenerator {
 
     private QrCodeGenerator() {
-        // Utility class.
     }
 
     public static Bitmap generate(String data, int size) {
