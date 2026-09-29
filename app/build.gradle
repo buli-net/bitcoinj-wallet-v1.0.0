@@ -48,7 +48,7 @@ packagingOptions {
 //    exclude 'concurrentMain/default/**'
 //    exclude 'linuxMain/default/**' 
     exclude 'org/bouncycastle/**/*.properties'
- //   exclude 'okhttp3/internal/publicsuffix/*'
+    exclude 'okhttp3/internal/publicsuffix/*'
     exclude 'org/bitcoinj/crypto/cacerts'
     exclude 'org.bitcoin.*.checkpoints.txt'
     }
