@@ -11,6 +11,7 @@ import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.TransactionInput;
 import org.bitcoinj.core.Transaction;
 import org.bitcoinj.script.ScriptBuilder;
+import org.bitcoinj.script.Script;
 import org.bitcoinj.kits.WalletAppKit;
 import org.bitcoinj.wallet.SendRequest;
 import org.bitcoinj.wallet.Wallet;
