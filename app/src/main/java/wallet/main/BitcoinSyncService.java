@@ -1,0 +1,533 @@
+package wallet.main;
+
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.Context;
+import android.content.ComponentName;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.os.IBinder;
+import android.os.PowerManager;
+import android.provider.Settings;
+import android.net.Uri;
+import android.support.v4.app.NotificationCompat;
+
+import org.bitcoinj.base.Coin;
+import org.bitcoinj.core.Transaction;
+
+/**
+ * Keeps the bitcoinj WalletAppKit alive independently of the Activity.
+ * The Activity is only a UI client; this foreground service owns the sync lifecycle.
+ */
+public class BitcoinSyncService extends Service {
+
+    private static final String CHANNEL_ID = "bitcoin_sync";
+    private static final String TRANSACTION_CHANNEL_ID = "bitcoin_transactions";
+    private static final int NOTIFICATION_ID = 1001;
+    private static final String PREFS_NOTIFICATIONS = "transaction_notifications";
+    private static final String KEY_RECEIVED_PREFIX = "received_";
+    private static final String KEY_SENT_PREFIX = "sent_";
+
+    // Keep the service CPU-awake while the wallet engine is running. This is
+    // important for long blockchain syncs when the device screen is off. The
+    // app also requests the Android battery-optimization exemption from the
+    // Sync screen; the wake lock prevents the foreground service thread from
+    // being put to sleep between peer/network recovery checks.
+    private PowerManager.WakeLock syncWakeLock;
+
+    public static void start(Context context) {
+        Intent intent = new Intent(context.getApplicationContext(), BitcoinSyncService.class);
+        Context app = context.getApplicationContext();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            app.startForegroundService(intent);
+        } else {
+            app.startService(intent);
+        }
+    }
+
+    /** Returns whether Android Doze is allowed to restrict this app. */
+    public static boolean isBatteryOptimizationIgnored(Context context) {
+        if (context == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        PowerManager powerManager =
+                (PowerManager) context.getApplicationContext().getSystemService(Context.POWER_SERVICE);
+        return powerManager == null
+                || powerManager.isIgnoringBatteryOptimizations(context.getPackageName());
+    }
+
+    /**
+     * Opens the most specific background/battery management screen available on this device.
+     *
+     * Android does not expose one public intent for OEM background-running controls.
+     * We therefore try known OEM settings only when the target activity actually exists,
+     * and always fall back to this app's own App info page rather than an all-app list.
+     * No network or external service is used.
+     */
+    public static boolean openBatteryOptimizationSettings(Context context) {
+        if (context == null) {
+            return false;
+        }
+
+        Context app = context.getApplicationContext();
+        PackageManager pm = app.getPackageManager();
+        String manufacturer = Build.MANUFACTURER == null
+                ? "" : Build.MANUFACTURER.toLowerCase(java.util.Locale.US);
+        String brand = Build.BRAND == null
+                ? "" : Build.BRAND.toLowerCase(java.util.Locale.US);
+
+        // OEM-specific routes. They are attempted only if Android can resolve them.
+        if (manufacturer.contains("xiaomi") || brand.contains("redmi") || brand.contains("poco")) {
+            if (startIfResolvable(app, pm, new Intent().setComponent(new ComponentName(
+                    "com.miui.securitycenter",
+                    "com.miui.permcenter.autostart.AutoStartManagementActivity")))) {
+                return true;
+            }
+            if (startIfResolvable(app, pm, new Intent("miui.intent.action.POWER_HIDE_MODE_APP_LIST")
+                    .addCategory(Intent.CATEGORY_DEFAULT))) {
+                return true;
+            }
+        }
+
+        if (manufacturer.contains("samsung")) {
+            if (startIfResolvable(app, pm, new Intent().setComponent(new ComponentName(
+                    "com.samsung.android.lool",
+                    "com.samsung.android.sm.battery.ui.usage.CheckableAppListActivity")))) {
+                return true;
+            }
+            if (startIfResolvable(app, pm, new Intent().setComponent(new ComponentName(
+                    "com.samsung.android.lool",
+                    "com.samsung.android.sm.ui.battery.BatteryActivity")))) {
+                return true;
+            }
+        }
+
+        if (manufacturer.contains("oneplus")) {
+            if (startIfResolvable(app, pm, new Intent().setComponent(new ComponentName(
+                    "com.oneplus.security",
+                    "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity")))) {
+                return true;
+            }
+            if (startIfResolvable(app, pm, new Intent(
+                    "com.android.settings.action.BACKGROUND_OPTIMIZE"))) {
+                return true;
+            }
+        }
+
+        if (manufacturer.contains("oppo") || manufacturer.contains("realme")
+                || brand.contains("oppo") || brand.contains("realme")) {
+            if (startIfResolvable(app, pm, new Intent().setComponent(new ComponentName(
+                    "com.coloros.safecenter",
+                    "com.coloros.safecenter.permission.startup.StartupAppListActivity")))) {
+                return true;
+            }
+            if (startIfResolvable(app, pm, new Intent().setComponent(new ComponentName(
+                    "com.oppo.safe",
+                    "com.oppo.safe.permission.startup.StartupAppListActivity")))) {
+                return true;
+            }
+        }
+
+        if (manufacturer.contains("vivo") || manufacturer.contains("iqoo")
+                || brand.contains("vivo") || brand.contains("iqoo")) {
+            if (startIfResolvable(app, pm, new Intent().setComponent(new ComponentName(
+                    "com.vivo.permissionmanager",
+                    "com.vivo.permissionmanager.activity.BgStartUpManagerActivity")))) {
+                return true;
+            }
+            if (startIfResolvable(app, pm, new Intent().setComponent(new ComponentName(
+                    "com.iqoo.secure",
+                    "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager")))) {
+                return true;
+            }
+        }
+
+        if (manufacturer.contains("huawei") || manufacturer.contains("honor")
+                || brand.contains("huawei") || brand.contains("honor")) {
+            if (startIfResolvable(app, pm, new Intent().setComponent(new ComponentName(
+                    "com.huawei.systemmanager",
+                    "com.huawei.systemmanager.optimize.process.ProtectActivity")))) {
+                return true;
+            }
+        }
+
+        if (manufacturer.contains("asus")) {
+            Intent launch = pm.getLaunchIntentForPackage("com.asus.mobilemanager");
+            if (launch != null) {
+                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                try {
+                    app.startActivity(launch);
+                    return true;
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        if (manufacturer.contains("tecno") || manufacturer.contains("infinix")
+                || manufacturer.contains("itel")) {
+            if (startIfResolvable(app, pm, new Intent().setComponent(new ComponentName(
+                    "com.transsion.phonemaster",
+                    "com.cyin.himgr.autostart.AutoStartActivity")))) {
+                return true;
+            }
+        }
+
+        // Universal, app-specific fallback. This opens Bitcoin Wallet's own App info,
+        // never the generic list of installed apps. OEMs can expose their background
+        // control directly from this page.
+        try {
+            Intent appInfo = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            appInfo.setData(Uri.parse("package:" + app.getPackageName()));
+            appInfo.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            app.startActivity(appInfo);
+            return true;
+        } catch (Exception ignored) {
+        }
+
+        // Last-resort Android standard screen.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                Intent battery = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                battery.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                app.startActivity(battery);
+                return true;
+            } catch (Exception ignored) {
+            }
+        }
+        return false;
+    }
+
+    private static boolean startIfResolvable(Context context, PackageManager pm, Intent intent) {
+        try {
+            if (intent.resolveActivity(pm) == null) {
+                return false;
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /** Opens the system confirmation screen for this app's battery optimization exemption. */
+    public static boolean requestBatteryOptimizationExemption(Context context) {
+        if (context == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+                || isBatteryOptimizationIgnored(context)) {
+            return false;
+        }
+
+        try {
+            Intent intent = new Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:" + context.getPackageName()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.getApplicationContext().startActivity(intent);
+            return true;
+        } catch (Exception ignored) {
+            try {
+                Intent fallback = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.getApplicationContext().startActivity(fallback);
+                return true;
+            } catch (Exception ignoredFallback) {
+                return false;
+            }
+        }
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        createNotificationChannels();
+        startForeground(NOTIFICATION_ID, buildSyncNotification(this, 0, 0, 0, true));
+        acquireSyncWakeLock();
+        ensureWalletPresenter();
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        // Keep the service foreground whenever Android recreates it. The service
+        // owns WalletAppKit; Activities are only UI clients.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForeground(NOTIFICATION_ID, buildSyncNotification(this, 0, 0, 0, true));
+        }
+        acquireSyncWakeLock();
+        ensureWalletPresenter();
+        return START_STICKY;
+    }
+
+    private void acquireSyncWakeLock() {
+        if (syncWakeLock != null && syncWakeLock.isHeld()) {
+            return;
+        }
+        PowerManager powerManager =
+                (PowerManager) getApplicationContext().getSystemService(Context.POWER_SERVICE);
+        if (powerManager == null) {
+            return;
+        }
+        try {
+            syncWakeLock = powerManager.newWakeLock(
+                    PowerManager.PARTIAL_WAKE_LOCK,
+                    getPackageName() + ":bitcoin-sync");
+            syncWakeLock.setReferenceCounted(false);
+            syncWakeLock.acquire();
+        } catch (Exception e) {
+            syncWakeLock = null;
+            android.util.Log.w("BitcoinSyncService",
+                    "Unable to acquire sync wake lock", e);
+        }
+    }
+
+    private void releaseSyncWakeLock() {
+        PowerManager.WakeLock wakeLock = syncWakeLock;
+        syncWakeLock = null;
+        if (wakeLock != null) {
+            try {
+                if (wakeLock.isHeld()) {
+                    wakeLock.release();
+                }
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private void ensureWalletPresenter() {
+        MainActivityPresenter presenter = MainActivityPresenter.getActivePresenter();
+        if (presenter == null) {
+            presenter = new MainActivityPresenter(
+                    new ServiceView(getApplicationContext()),
+                    getFilesDir());
+        }
+        presenter.subscribe();
+    }
+
+    public static void updateSyncNotification(
+            Context context,
+            int percent,
+            int currentBlock,
+            int targetBlock,
+            boolean syncing) {
+        if (context == null) {
+            return;
+        }
+        Context app = context.getApplicationContext();
+        NotificationManager manager =
+                (NotificationManager) app.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) {
+            return;
+        }
+        manager.notify(
+                NOTIFICATION_ID,
+                buildSyncNotification(app, percent, currentBlock, targetBlock, syncing));
+    }
+
+    public static void notifyReceived(
+            Context context, Coin amount, Transaction transaction) {
+        postTransactionNotification(
+                context,
+                appText(context, wallet.main.R.string.notification_bitcoin_received),
+                appText(context, wallet.main.R.string.notification_received_amount,
+                        amount == null ? "Bitcoin" : amount.toFriendlyString()),
+                transaction);
+    }
+
+    public static void notifySent(
+            Context context, Coin amount, Transaction transaction) {
+        postTransactionNotification(
+                context,
+                appText(context, wallet.main.R.string.notification_bitcoin_sent),
+                appText(context, wallet.main.R.string.notification_sent_amount,
+                        amount == null ? "Bitcoin" : amount.toFriendlyString()),
+                transaction);
+    }
+
+    private static String appText(Context context, int resId, Object... args) {
+        return context.getString(resId, args);
+    }
+
+    private static void postTransactionNotification(
+            Context context, String title, String text, Transaction transaction) {
+        if (context == null) {
+            return;
+        }
+        Context app = context.getApplicationContext();
+        NotificationManager manager =
+                (NotificationManager) app.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) {
+            return;
+        }
+
+        String hash = transaction == null ? "" : transaction.getTxId().toString();
+        if (!hash.isEmpty() && !markTransactionNotificationSeen(app, title, hash)) {
+            return;
+        }
+
+        String expanded = text;
+        if (!hash.isEmpty()) {
+            expanded = text + "\nTX: " + hash;
+        }
+
+        Notification notification = new NotificationCompat.Builder(app, TRANSACTION_CHANNEL_ID)
+                .setSmallIcon(wallet.main.R.drawable.ic_bitcoin_notification)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(expanded))
+                .setContentIntent(mainActivityPendingIntent(app))
+                .setAutoCancel(true)
+                .setCategory(NotificationCompat.CATEGORY_STATUS)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setDefaults(NotificationCompat.DEFAULT_SOUND)
+                .build();
+
+        int notificationId = hash.isEmpty()
+                ? (int) (System.currentTimeMillis() & 0x7fffffff)
+                : ((title + ":" + hash).hashCode() & 0x7fffffff);
+        if (notificationId == 0) {
+            notificationId = 1;
+        }
+        manager.notify(notificationId, notification);
+    }
+
+    private static boolean markTransactionNotificationSeen(
+            Context context, String title, String txid) {
+        android.content.SharedPreferences prefs =
+                context.getSharedPreferences(PREFS_NOTIFICATIONS, Context.MODE_PRIVATE);
+        String prefix = context.getString(wallet.main.R.string.notification_bitcoin_sent).equals(title)
+                ? KEY_SENT_PREFIX
+                : KEY_RECEIVED_PREFIX;
+        String key = prefix + txid;
+        synchronized (BitcoinSyncService.class) {
+            if (prefs.getBoolean(key, false)) {
+                return false;
+            }
+            prefs.edit().putBoolean(key, true).apply();
+            return true;
+        }
+    }
+
+    private static PendingIntent mainActivityPendingIntent(Context context) {
+        Intent intent = new Intent(context, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        return PendingIntent.getActivity(context, 2001, intent, flags);
+    }
+
+    private static Notification buildSyncNotification(
+            Context context,
+            int percent,
+            int currentBlock,
+            int targetBlock,
+            boolean syncing) {
+        int safePercent = Math.max(0, Math.min(100, percent));
+        String title = context.getString(wallet.main.R.string.app_name);
+        String content;
+
+        if (syncing) {
+            if (targetBlock > 0) {
+                content = context.getString(
+                        wallet.main.R.string.notification_syncing,
+                        safePercent, currentBlock, targetBlock);
+            } else if (currentBlock > 0) {
+                content = context.getString(
+                        wallet.main.R.string.notification_waiting_peers,
+                        currentBlock);
+            } else {
+                content = context.getString(
+                        wallet.main.R.string.notification_syncing_no_target,
+                        safePercent, currentBlock);
+            }
+        } else {
+            content = context.getString(
+                    wallet.main.R.string.notification_sync_complete, currentBlock);
+        }
+
+        NotificationCompat.Builder builder =
+                new NotificationCompat.Builder(context, CHANNEL_ID)
+                        .setSmallIcon(wallet.main.R.drawable.ic_bitcoin_notification)
+                        .setContentTitle(title)
+                        .setContentText(content)
+                        .setOngoing(true)
+                        .setOnlyAlertOnce(true)
+                        .setCategory(NotificationCompat.CATEGORY_SERVICE)
+                        .setPriority(NotificationCompat.PRIORITY_LOW)
+                        .setProgress(100, safePercent, false);
+
+        builder.setContentIntent(mainActivityPendingIntent(context));
+        return builder.build();
+    }
+
+    private void createNotificationChannels() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return;
+        }
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager == null) {
+            return;
+        }
+        NotificationChannel syncChannel = new NotificationChannel(
+                CHANNEL_ID,
+                getString(wallet.main.R.string.notification_channel_sync),
+                NotificationManager.IMPORTANCE_LOW);
+        syncChannel.setDescription(
+                getString(wallet.main.R.string.notification_channel_sync_description));
+        manager.createNotificationChannel(syncChannel);
+
+        NotificationChannel transactionChannel = new NotificationChannel(
+                TRANSACTION_CHANNEL_ID,
+                getString(wallet.main.R.string.notification_channel_transactions),
+                NotificationManager.IMPORTANCE_DEFAULT);
+        transactionChannel.setDescription(
+                getString(wallet.main.R.string.notification_channel_transactions_description));
+        manager.createNotificationChannel(transactionChannel);
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        // Do not stop the service when the wallet task is removed from Recents.
+        // START_STICKY keeps the sync engine alive/restartable independently of the UI task.
+        super.onTaskRemoved(rootIntent);
+    }
+
+    @Override
+    public void onDestroy() {
+        releaseSyncWakeLock();
+        MainActivityPresenter presenter = MainActivityPresenter.getActivePresenter();
+        if (presenter != null) {
+            presenter.unsubscribe();
+        }
+        super.onDestroy();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    private static final class ServiceView implements MainActivityContract.MainActivityView {
+        private final Context context;
+
+        ServiceView(Context context) {
+            this.context = context.getApplicationContext();
+        }
+
+        @Override public void setPresenter(MainActivityContract.MainActivityPresenter presenter) { }
+        @Override public void displayDownloadContent(boolean shown) { }
+        @Override public void displayProgress(int percent) { }
+        @Override public void displayPercentage(int percent) { }
+        @Override public void displayMyBalance(String balance) { }
+        @Override public void displayBalanceState(String available, String pending) { }
+        @Override public void displayMyAddress(String address) { }
+        @Override public void displayWalletType(String type) { }
+        @Override public void displayTransactions(java.util.List<wallet.model.TransactionItem> transactions) { }
+        @Override public void showToastMessage(String message) { }
+        @Override public Context getActivityContext() { return context; }
+    }
+}
