@@ -69,6 +69,12 @@
     </item>
 
     <item
+        android:id="@+id/menuCrashLog"
+        android:title="@string/menu_crash_log"
+        android:icon="@drawable/ic_menu_bug_24dp"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/menuAbout"
         android:title="@string/menu_about"
         android:icon="@drawable/ic_menu_about_24dp"

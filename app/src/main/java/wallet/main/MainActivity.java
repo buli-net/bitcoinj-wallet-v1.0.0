@@ -342,6 +342,9 @@ public class MainActivity extends AppCompatActivity
         } else if (itemId == R.id.menuWalletUtility) {
             startActivity(new Intent(this, wallet.tools.WalletUtilityActivity.class));
             return true;
+        } else if (itemId == R.id.menuCrashLog) {
+            startActivity(new Intent(this, CrashLogActivity.class));
+            return true;
         } else if (itemId == R.id.menuAbout) {
             startActivity(new Intent(this, wallet.about.AboutActivity.class));
             return true;

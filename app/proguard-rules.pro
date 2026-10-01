@@ -95,3 +95,7 @@
 
 -dontnote com.google.common.io.TempFileCreator
 -dontnote com.google.common.io.TempFileCreator$JavaNioCreator
+
+# Temporary crash capture screen.
+-keep class wallet.main.CrashReporter { *; }
+-keep class wallet.main.CrashLogActivity { *; }

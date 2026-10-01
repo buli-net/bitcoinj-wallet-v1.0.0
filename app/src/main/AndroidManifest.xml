@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
+        android:name=".CrashReporter"
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:icon="@drawable/app_icon"
@@ -73,6 +74,10 @@
             android:screenOrientation="portrait" />
         <activity
             android:name="wallet.about.AboutActivity"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name="wallet.main.CrashLogActivity"
             android:screenOrientation="portrait" />
 
         <activity

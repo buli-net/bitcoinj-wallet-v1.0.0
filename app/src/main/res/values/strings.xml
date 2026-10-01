@@ -8,6 +8,15 @@
     <string name="menu_sync">Sync &amp; Network</string>
     <string name="menu_backup_recovery">Backup &amp; Recovery</string>
     <string name="menu_about">About</string>
+    <string name="menu_crash_log">Export crash log</string>
+    <string name="crash_log_title">Crash report</string>
+    <string name="crash_log_export">EXPORT CRASH LOG</string>
+    <string name="crash_log_clear">CLEAR CRASH LOG</string>
+    <string name="crash_log_empty">No crash report has been captured.</string>
+    <string name="crash_log_exported">Crash report exported.</string>
+    <string name="crash_log_export_failed">Unable to export crash report.</string>
+    <string name="crash_log_file_name">bitcoin-wallet-crash.txt</string>
+
     <string name="wallet_title">Wallet</string>
     <string name="about_title">About</string>
     <string name="backup_title">Backup wallet</string>
