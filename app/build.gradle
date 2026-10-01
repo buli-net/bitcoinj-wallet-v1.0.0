@@ -9,7 +9,7 @@ android {
     defaultConfig {
         applicationId 'wallet.main'
         minSdk 21
-        targetSdk 37
+        targetSdk 33
         versionCode 1
         versionName '1.0'
     }
