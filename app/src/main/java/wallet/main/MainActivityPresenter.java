@@ -289,13 +289,19 @@ public class MainActivityPresenter
                                             throw new IllegalStateException(
                                                     "Restored wallet network does not match the application network");
                                         }
-                                        mergeRestoredSecondaryWalletData(
-                                                wallet(),
-                                                pendingRestoreImportedKeys,
-                                                pendingRestoreWatchedScripts,
-                                                pendingRestoreSourceEncrypted,
-                                                pendingRestoreSourceSessionKey);
-                                        wallet().saveToFile(walletFile);
+                                        try {
+                                            mergeRestoredSecondaryWalletData(
+                                                    wallet(),
+                                                    pendingRestoreImportedKeys,
+                                                    pendingRestoreWatchedScripts,
+                                                    pendingRestoreSourceEncrypted,
+                                                    pendingRestoreSourceSessionKey);
+                                            wallet().saveToFile(walletFile);
+                                        } catch (IOException error) {
+                                            throw new IllegalStateException(
+                                                    "Unable to preserve secondary wallets during restore",
+                                                    error);
+                                        }
                                         restoreBackup.delete();
                                         pendingMnemonicBackupFile = null;
                                         clearPendingRestoreSecondaryData();
