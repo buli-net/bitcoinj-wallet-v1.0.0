@@ -1,5 +1,6 @@
 -dontskipnonpubliclibraryclasses
 -dontoptimize
+-dontpreverify
 
 
 -keepclassmembers class * implements java.io.Serializable {
