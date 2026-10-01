@@ -48,6 +48,14 @@ public class CrashApplication extends Application {
         }
     }
 
+    private String getPackageVersionName() {
+        try {
+            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception ignored) {
+            return "unknown";
+        }
+    }
+
     private void saveCrashReport(Thread thread, Throwable throwable) {
         try {
             StringWriter stack = new StringWriter();
@@ -56,7 +64,7 @@ public class CrashApplication extends Application {
             StringBuilder report = new StringBuilder();
             report.append("Bitcoin Wallet crash report\n");
             report.append("Time: ").append(System.currentTimeMillis()).append('\n');
-            report.append("App version: ").append(BuildConfig.VERSION_NAME).append('\n');
+            report.append("App version: ").append(getPackageVersionName()).append('\n');
             report.append("Target SDK: ").append(getApplicationInfo().targetSdkVersion).append('\n');
             report.append("Android: ").append(Build.VERSION.RELEASE)
                     .append(" (API ").append(Build.VERSION.SDK_INT).append(")\n");
