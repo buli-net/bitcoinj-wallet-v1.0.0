@@ -315,45 +315,44 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.menuScan:
-                openScanner();
-                return true;
-            case R.id.menuSend:
-                startActivity(new Intent(this, wallet.send.SendActivity.class));
-                return true;
-            case R.id.menuSecurity:
-                startActivity(new Intent(this, wallet.security.SecurityActivity.class));
-                return true;
-            case R.id.menuAddressBook:
-                startActivityForResult(
-                        new Intent(this, wallet.contacts.AddressBookActivity.class),
-                        ADDRESS_BOOK_REQUEST);
-                return true;
-            case R.id.menuImportWif:
-                startActivity(new Intent(this, wallet.tools.WalletImportWifActivity.class));
-                return true;
-            case R.id.menuWatchOnlyWallet:
-                startActivity(new Intent(this, wallet.tools.WatchOnlyWalletActivity.class));
-                return true;
-            case R.id.menuPaperWallet:
-                startActivity(new Intent(this, wallet.tools.PaperWalletActivity.class));
-                return true;
-            case R.id.menuWalletUtility:
-                startActivity(new Intent(this, wallet.tools.WalletUtilityActivity.class));
-                return true;
-            case R.id.menuAbout:
-                startActivity(new Intent(this, wallet.about.AboutActivity.class));
-                return true;
-            case R.id.menuSync:
-                startActivity(new Intent(this, wallet.main.SyncActivity.class));
-                return true;
-            case R.id.menuBackupRecovery:
-                startActivity(new Intent(this, wallet.backup.BackupRecoveryActivity.class));
-                return true;
-            default:
-                return super.onOptionsItemSelected(item);
+        int itemId = item.getItemId();
+        if (itemId == R.id.menuScan) {
+            openScanner();
+            return true;
+        } else if (itemId == R.id.menuSend) {
+            startActivity(new Intent(this, wallet.send.SendActivity.class));
+            return true;
+        } else if (itemId == R.id.menuSecurity) {
+            startActivity(new Intent(this, wallet.security.SecurityActivity.class));
+            return true;
+        } else if (itemId == R.id.menuAddressBook) {
+            startActivityForResult(
+                    new Intent(this, wallet.contacts.AddressBookActivity.class),
+                    ADDRESS_BOOK_REQUEST);
+            return true;
+        } else if (itemId == R.id.menuImportWif) {
+            startActivity(new Intent(this, wallet.tools.WalletImportWifActivity.class));
+            return true;
+        } else if (itemId == R.id.menuWatchOnlyWallet) {
+            startActivity(new Intent(this, wallet.tools.WatchOnlyWalletActivity.class));
+            return true;
+        } else if (itemId == R.id.menuPaperWallet) {
+            startActivity(new Intent(this, wallet.tools.PaperWalletActivity.class));
+            return true;
+        } else if (itemId == R.id.menuWalletUtility) {
+            startActivity(new Intent(this, wallet.tools.WalletUtilityActivity.class));
+            return true;
+        } else if (itemId == R.id.menuAbout) {
+            startActivity(new Intent(this, wallet.about.AboutActivity.class));
+            return true;
+        } else if (itemId == R.id.menuSync) {
+            startActivity(new Intent(this, wallet.main.SyncActivity.class));
+            return true;
+        } else if (itemId == R.id.menuBackupRecovery) {
+            startActivity(new Intent(this, wallet.backup.BackupRecoveryActivity.class));
+            return true;
         }
+        return super.onOptionsItemSelected(item);
     }
 
     private void openScanner() {
