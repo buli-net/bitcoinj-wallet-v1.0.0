@@ -12,9 +12,6 @@
 -keepclassmembers class org.bitcoin.protocols.payments.Protos {
     com.google.protobuf.Descriptors$FileDescriptor descriptor;
 }
-
-# Protobuf-javalite generated messages are accessed reflectively by bitcoinj.
--keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
 -dontwarn org.bitcoinj.store.LevelDBBlockStore
 -dontwarn org.bitcoinj.store.LevelDBFullPrunedBlockStore**
 
