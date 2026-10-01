@@ -47,9 +47,7 @@ android {
 
 configurations.configureEach {
     exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
-    exclude group: 'com.google.code.findbugs', module: 'jsr305'
     exclude group: 'com.google.code.findbugs', module: 'annotations'
-    exclude group: 'net.jcip', module: 'jcip-annotations'
     resolutionStrategy {
         force 'org.slf4j:slf4j-api:1.7.36'
     }
