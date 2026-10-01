@@ -1,4 +1,3 @@
--dontoptimize
 -dontpreverify
 -dontobfuscate
 
