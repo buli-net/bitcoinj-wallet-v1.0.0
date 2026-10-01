@@ -27,6 +27,8 @@ import org.bitcoinj.utils.BriefLogFormatter;
 import org.bitcoinj.wallet.DeterministicSeed;
 import org.bitcoinj.wallet.KeyChainGroupStructure;
 import org.bitcoinj.wallet.Wallet;
+import org.bitcoinj.crypto.AesKey;
+import org.bitcoinj.crypto.ECKey;
 import org.bitcoinj.crypto.MnemonicCode;
 
 import java.io.File;
@@ -116,6 +118,10 @@ public class MainActivityPresenter
 
     private volatile DeterministicSeed pendingRestoreSeed;
     private volatile File pendingMnemonicBackupFile;
+    private volatile List<ECKey> pendingRestoreImportedKeys = new ArrayList<>();
+    private volatile List<org.bitcoinj.script.Script> pendingRestoreWatchedScripts = new ArrayList<>();
+    private volatile AesKey pendingRestoreSourceSessionKey;
+    private volatile boolean pendingRestoreSourceEncrypted;
 
     private ScheduledExecutorService watchdog;
 
@@ -283,8 +289,16 @@ public class MainActivityPresenter
                                             throw new IllegalStateException(
                                                     "Restored wallet network does not match the application network");
                                         }
+                                        mergeRestoredSecondaryWalletData(
+                                                wallet(),
+                                                pendingRestoreImportedKeys,
+                                                pendingRestoreWatchedScripts,
+                                                pendingRestoreSourceEncrypted,
+                                                pendingRestoreSourceSessionKey);
+                                        wallet().saveToFile(walletFile);
                                         restoreBackup.delete();
                                         pendingMnemonicBackupFile = null;
+                                        clearPendingRestoreSecondaryData();
                                     }
 
                                     walletReady = true;
@@ -1226,6 +1240,16 @@ public class MainActivityPresenter
                     throw new IOException(text(R.string.wallet_closing));
                 }
 
+                Wallet currentWallet = null;
+                synchronized (kitLock) {
+                    if (walletAppKit != null && walletReady) {
+                        currentWallet = walletAppKit.wallet();
+                    }
+                }
+                if (currentWallet == null && walletFile.exists()) {
+                    currentWallet = Wallet.loadFromFile(walletFile);
+                }
+                captureRestoreSecondaryWalletData(currentWallet);
                 WalletSecurity.clearSessionKey();
 
                 try (InputStream input =
@@ -1318,9 +1342,18 @@ public class MainActivityPresenter
                 }
                 installedWallet.isConsistentOrThrow();
 
+                mergeRestoredSecondaryWalletData(
+                        installedWallet,
+                        pendingRestoreImportedKeys,
+                        pendingRestoreWatchedScripts,
+                        pendingRestoreSourceEncrypted,
+                        pendingRestoreSourceSessionKey);
+                installedWallet.saveToFile(walletFile);
+
                 if (backupOfCurrent.exists()) {
                     backupOfCurrent.delete();
                 }
+                clearPendingRestoreSecondaryData();
 
                 autoRestartCount = 0;
                 lastPercent = -1;
@@ -1351,8 +1384,7 @@ public class MainActivityPresenter
                     }
                     backupOfCurrent.renameTo(walletFile);
                 }
-
-                
+                clearPendingRestoreSecondaryData();
 
                 runOnUi(() ->
                         view.showToastMessage(
@@ -1401,6 +1433,17 @@ public class MainActivityPresenter
                     Instant creationTime = parseBirthday(birthday);
                     seed = DeterministicSeed.ofMnemonic(words, "", creationTime);
                 }
+
+                Wallet currentWallet = null;
+                synchronized (kitLock) {
+                    if (walletAppKit != null && walletReady) {
+                        currentWallet = walletAppKit.wallet();
+                    }
+                }
+                if (currentWallet == null && walletFile.exists()) {
+                    currentWallet = Wallet.loadFromFile(walletFile);
+                }
+                captureRestoreSecondaryWalletData(currentWallet);
 
                 stopWatchdog();
                 WalletSecurity.clearSessionKey();
@@ -1453,11 +1496,95 @@ public class MainActivityPresenter
                 if (backupOfCurrent.exists() && !walletFile.exists()) {
                     backupOfCurrent.renameTo(walletFile);
                 }
+                clearPendingRestoreSecondaryData();
                 runOnUi(() ->
                         view.showToastMessage(
                                 text(R.string.mnemonic_restore_failed, safeMessage(error))));
             }
         }, "bitcoinj-mnemonic-restore").start();
+    }
+
+    private void captureRestoreSecondaryWalletData(Wallet source) throws IOException {
+        pendingRestoreImportedKeys = new ArrayList<>();
+        pendingRestoreWatchedScripts = new ArrayList<>();
+        pendingRestoreSourceSessionKey = WalletSecurity.getSessionKey();
+        pendingRestoreSourceEncrypted = false;
+        if (source == null) return;
+
+        pendingRestoreSourceEncrypted = WalletSecurity.isEncrypted(source);
+        pendingRestoreImportedKeys.addAll(source.getImportedKeys());
+        pendingRestoreWatchedScripts.addAll(source.getWatchedScripts());
+    }
+
+    private void mergeRestoredSecondaryWalletData(
+            Wallet target,
+            List<ECKey> importedKeys,
+            List<org.bitcoinj.script.Script> watchedScripts,
+            boolean sourceEncrypted,
+            AesKey sourceSessionKey) throws IOException {
+        if (target == null) throw new IOException("Restored wallet is not available");
+
+        if (watchedScripts != null && !watchedScripts.isEmpty()) {
+            List<org.bitcoinj.script.Script> existing = target.getWatchedScripts();
+            List<org.bitcoinj.script.Script> missing = new ArrayList<>();
+            for (org.bitcoinj.script.Script script : watchedScripts) {
+                if (!existing.contains(script)) missing.add(script);
+            }
+            if (!missing.isEmpty()) target.addWatchedScripts(missing);
+        }
+
+        if (importedKeys == null || importedKeys.isEmpty()) return;
+
+        List<ECKey> keysToImport = new ArrayList<>();
+        if (sourceEncrypted && !target.isEncrypted()) {
+            if (sourceSessionKey == null) {
+                throw new IOException("Unlock the current wallet before restoring so imported wallets can be preserved.");
+            }
+            for (ECKey key : importedKeys) {
+                if (key.isEncrypted()) {
+                    try {
+                        keysToImport.add(key.decrypt(key.getKeyCrypter(), sourceSessionKey));
+                    } catch (Exception error) {
+                        throw new IOException("Unable to preserve an imported wallet during restore", error);
+                    }
+                } else {
+                    keysToImport.add(key);
+                }
+            }
+        } else {
+            keysToImport.addAll(importedKeys);
+        }
+
+        List<ECKey> missingKeys = new ArrayList<>();
+        for (ECKey key : keysToImport) {
+            if (target.findKeyFromPubKey(key.getPubKey()) == null) missingKeys.add(key);
+        }
+        if (missingKeys.isEmpty()) return;
+
+        try {
+            if (target.isEncrypted()) {
+                if (sourceEncrypted && missingKeys.get(0).isEncrypted()) {
+                    for (ECKey key : missingKeys) target.importKey(key);
+                } else {
+                    AesKey targetSessionKey = WalletSecurity.getSessionKey();
+                    if (targetSessionKey == null) {
+                        throw new IOException("Unlock the restored wallet before imported wallets can be preserved.");
+                    }
+                    target.importKeysAndEncrypt(missingKeys, targetSessionKey);
+                }
+            } else {
+                target.importKeys(missingKeys);
+            }
+        } catch (Exception error) {
+            throw new IOException("Unable to preserve imported wallets during restore", error);
+        }
+    }
+
+    private void clearPendingRestoreSecondaryData() {
+        pendingRestoreImportedKeys = new ArrayList<>();
+        pendingRestoreWatchedScripts = new ArrayList<>();
+        pendingRestoreSourceSessionKey = null;
+        pendingRestoreSourceEncrypted = false;
     }
 
     private Instant parseBirthday(String birthday) {
