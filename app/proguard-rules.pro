@@ -37,7 +37,8 @@
 -dontwarn module-info
 -dontwarn java.lang.invoke.**
 
-# Android Support Library 28
+
+# SearchView compatibility note
 -dontnote android.widget.SearchView
 
 
