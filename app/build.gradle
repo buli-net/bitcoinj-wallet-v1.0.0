@@ -19,7 +19,7 @@ android {
             minifyEnabled true
             shrinkResources true
             crunchPngs true
-            proguardFiles project.android.getDefaultProguardFile('proguard-android-optimize.txt'),
+            proguardFiles project.android.getDefaultProguardFile('proguard-android.txt'),
                     'proguard-rules.pro'
         }
     }
