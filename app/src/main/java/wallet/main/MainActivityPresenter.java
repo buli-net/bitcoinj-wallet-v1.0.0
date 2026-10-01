@@ -3,7 +3,6 @@ package wallet.main;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
-import android.util.Log;
 
 import wallet.Constants;
 import wallet.model.TransactionItem;
@@ -50,7 +49,6 @@ public class MainActivityPresenter
 
     private static volatile MainActivityPresenter activePresenter;
 
-    private static final String TAG = "BitcoinWalletSync";
     private static final int MAX_CONNECTIONS = 8;
 
     private static final long STALL_TIMEOUT_MS = 90_000L;
@@ -271,14 +269,8 @@ public class MainActivityPresenter
                                                         32
                                                 );
 
-                                    } catch (Exception e) {
-
-                                        Log.w(
-                                                TAG,
-                                                "PeerGroup tuning failed; "
-                                                        + "using defaults",
-                                                e
-                                        );
+                                    } catch (Exception ignored) {
+                                        // Peer tuning is best-effort; WalletAppKit defaults remain valid.
                                     }
 
                                     setupWalletListeners(wallet());
@@ -514,7 +506,7 @@ public class MainActivityPresenter
                                 failedKit.failureCause();
 
                     } catch (Exception ignored) {
-
+                        // Failure details are optional during cleanup.
                     }
                 }
 
@@ -526,33 +518,15 @@ public class MainActivityPresenter
                             );
                 }
 
-                Log.e(
-                        TAG,
-                        "================================"
-                );
+                
 
-                Log.e(
-                        TAG,
-                        "WalletAppKit FAILED",
-                        e
-                );
+                
 
-                Log.e(
-                        TAG,
-                        "WalletAppKit failureCause",
-                        failureCause
-                );
+                
 
-                Log.e(
-                        TAG,
-                        "WalletAppKit rootCause",
-                        rootCause
-                );
+                
 
-                Log.e(
-                        TAG,
-                        "================================"
-                );
+                
 
                 final String errorText =
                         buildFailureMessage(
@@ -617,7 +591,7 @@ public class MainActivityPresenter
                         // the kit in a non-running state. Do not restart it while
                         // that startup is already in progress.
                         if (!startupInProgress) {
-                            Log.w(TAG, "WalletAppKit is not running; scheduling recovery");
+                            
                             restartWalletKit("WalletAppKit stopped");
                         }
                         return;
@@ -658,22 +632,10 @@ public class MainActivityPresenter
                         if (noPeerFor >= NO_PEER_RECONNECT_TIMEOUT_MS
                                 && !startupInProgress) {
 
-                            Log.w(
-                                    TAG,
-                                    "NO CONNECTED PEERS for "
-                                            + (noPeerFor / 1000)
-                                            + "s: pending="
-                                            + pendingPeers
-                                            + " percent="
-                                            + lastPercent
-                                            + " chain="
-                                            + chainHeight
-                                            + " peerHeight="
-                                            + peerHeight
-                            );
+                            
 
                             if (autoRestartCount >= MAX_AUTO_RESTARTS) {
-                                Log.e(TAG, "Maximum automatic sync restarts reached.");
+                                
                                 runOnUi(() ->
                                         view.showToastMessage(
                                                 text(R.string.sync_waiting_network)
@@ -718,28 +680,11 @@ public class MainActivityPresenter
                         return;
                     }
 
-                    Log.w(
-                            TAG,
-                            "SYNC STALLED for "
-                                    + (stalledFor / 1000)
-                                    + "s: percent="
-                                    + lastPercent
-                                    + " chain="
-                                    + chainHeight
-                                    + " peerHeight="
-                                    + peerHeight
-                                    + " peers="
-                                    + peers
-                                    + " pending="
-                                    + pendingPeers
-                    );
+                    
 
                     if (autoRestartCount >= MAX_AUTO_RESTARTS) {
 
-                        Log.e(
-                                TAG,
-                                "Maximum automatic sync restarts reached."
-                        );
+                        
 
                         runOnUi(() ->
                                 view.showToastMessage(
@@ -773,15 +718,11 @@ public class MainActivityPresenter
         if (autoRestartCount >=
                 MAX_AUTO_RESTARTS) {
 
-            Log.e(
-                    TAG,
-                    "Maximum automatic startup "
-                            + "restarts reached."
-            );
+            
 
             runOnUi(() ->
                     view.showToastMessage(
-                            text(R.string.wallet_start_failed_detailed, TAG)
+                            text(R.string.wallet_start_failed_detailed)
                     )
             );
 
@@ -828,13 +769,7 @@ public class MainActivityPresenter
         downloadFinished = false;
         notifySyncStateChanged();
 
-        Log.w(
-                TAG,
-                "Restarting WalletAppKit (#"
-                        + autoRestartCount
-                        + "): "
-                        + reason
-        );
+        
 
         runOnUi(() -> {
 
@@ -867,14 +802,8 @@ public class MainActivityPresenter
                                 .stopAsync()
                                 .awaitTerminated();
 
-                    } catch (Exception stopError) {
-
-                        Log.w(
-                                TAG,
-                                "Error stopping old "
-                                        + "WalletAppKit",
-                                stopError
-                        );
+                    } catch (Exception ignored) {
+                        // Stopping an already-failed WalletAppKit is best-effort cleanup.
                     }
                 }
 
@@ -1094,13 +1023,8 @@ public class MainActivityPresenter
                             .awaitTerminated();
                 }
 
-            } catch (Exception e) {
-
-                Log.w(
-                        TAG,
-                        "Error stopping WalletAppKit",
-                        e
-                );
+            } catch (Exception ignored) {
+                // Shutdown cleanup is best-effort.
             }
 
         }, "bitcoinj-stop").start();
@@ -1176,8 +1100,8 @@ public class MainActivityPresenter
                         Context.propagate(Context.getOrCreate(parameters));
                         renderSelectedWallet(currentKit.wallet());
                         lastRefreshAt = System.currentTimeMillis();
-                    } catch (Exception e) {
-                        Log.w(TAG, "Refresh failed", e);
+                    } catch (Exception ignored) {
+                        // A failed refresh will be retried by the next wallet update.
                     }
                 }
             } finally {
@@ -1428,11 +1352,7 @@ public class MainActivityPresenter
                     backupOfCurrent.renameTo(walletFile);
                 }
 
-                Log.e(
-                        TAG,
-                        "Wallet restore failed",
-                        e
-                );
+                
 
                 runOnUi(() ->
                         view.showToastMessage(
@@ -1631,11 +1551,11 @@ public class MainActivityPresenter
                 if (safetyCopy != null && safetyCopy.exists()) {
                     try {
                         copyFile(safetyCopy, walletFile);
-                    } catch (Exception restoreError) {
-                        Log.e(TAG, "Unable to restore watch-rescan safety copy", restoreError);
+                    } catch (Exception ignored) {
+                        // The original wallet file remains untouched if recovery fails.
                     }
                 }
-                Log.e(TAG, "Watch-only rescan failed", error);
+
                 synchronized (kitLock) {
                     walletAppKit = null;
                     walletReady = false;
@@ -1643,8 +1563,8 @@ public class MainActivityPresenter
                 if (!shuttingDown) {
                     try {
                         startWalletKit();
-                    } catch (Exception restartError) {
-                        Log.e(TAG, "Unable to restart WalletAppKit after watch-only rescan failure", restartError);
+                    } catch (Exception ignored) {
+                        // The completion callback reports the restart failure to the caller.
                     }
                 }
             } finally {
@@ -1778,7 +1698,7 @@ public class MainActivityPresenter
             try {
                 listener.run();
             } catch (Exception e) {
-                Log.w(TAG, "Sync state listener failed", e);
+                
             }
         }
     }
@@ -2130,7 +2050,7 @@ public class MainActivityPresenter
             try {
                 listener.run();
             } catch (Exception e) {
-                Log.w(TAG, "Wallet UI listener failed", e);
+                
             }
         }
     }

@@ -4,6 +4,8 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import android.os.Bundle;
 import android.os.Build;
@@ -24,8 +26,8 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.zxing.integration.android.IntentIntegrator;
-import com.google.zxing.integration.android.IntentResult;
+import com.journeyapps.barcodescanner.ScanContract;
+import com.journeyapps.barcodescanner.ScanOptions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,12 +43,38 @@ import wallet.storage.WalletFileMigration;
 public class MainActivity extends BaseActivity
         implements MainActivityContract.MainActivityView {
 
+    private final ActivityResultLauncher<ScanOptions> barcodeLauncher =
+            registerForActivityResult(new ScanContract(), result -> {
+                if (!TextUtils.isEmpty(result.getContents())) {
+                    handleScannedAddress(result.getContents());
+                }
+            });
+
+    private final ActivityResultLauncher<Intent> addressBookLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    String selectedAddress = result.getData().getStringExtra(
+                            wallet.contacts.AddressBookActivity.EXTRA_SELECTED_ADDRESS);
+                    if (!TextUtils.isEmpty(selectedAddress)) {
+                        Intent send = new Intent(this, wallet.send.SendActivity.class);
+                        send.putExtra(wallet.send.SendActivity.EXTRA_RECIPIENT, selectedAddress);
+                        startActivity(send);
+                    }
+                }
+            });
+
+    private final ActivityResultLauncher<String> transactionExportLauncher =
+            registerForActivityResult(new ActivityResultContracts.CreateDocument("text/csv"), uri -> {
+                if (uri != null) {
+                    exportTransactionsTo(uri);
+                }
+            });
+
     private static final String STATE_TRANSACTION_FILTER = "transaction_filter";
     private static final String STATE_TRANSACTION_LIMIT = "transaction_limit";
     private static final int FILTER_ALL = 0;
     private static final int FILTER_SENT = 1;
     private static final int FILTER_RECEIVED = 2;
-    private static final int ADDRESS_BOOK_REQUEST = 9201;
 
     private MainActivityContract.MainActivityPresenter presenter;
 
@@ -325,9 +353,8 @@ public class MainActivity extends BaseActivity
             startActivity(new Intent(this, wallet.security.SecurityActivity.class));
             return true;
         } else if (itemId == R.id.menuAddressBook) {
-            startActivityForResult(
-                    new Intent(this, wallet.contacts.AddressBookActivity.class),
-                    ADDRESS_BOOK_REQUEST);
+            addressBookLauncher.launch(
+                    new Intent(this, wallet.contacts.AddressBookActivity.class));
             return true;
         } else if (itemId == R.id.menuImportWif) {
             startActivity(new Intent(this, wallet.tools.WalletImportWifActivity.class));
@@ -355,9 +382,19 @@ public class MainActivity extends BaseActivity
     }
 
     private void openScanner() {
-        new IntentIntegrator(this)
-                .setPrompt(getString(R.string.scan_bitcoin_address))
-                .initiateScan();
+        ScanOptions options = new ScanOptions()
+                .setPrompt(getString(R.string.scan_bitcoin_address));
+        barcodeLauncher.launch(options);
+    }
+
+    private void handleScannedAddress(String value) {
+        String address = value.trim();
+        if (TextUtils.isEmpty(address)) {
+            return;
+        }
+        Intent send = new Intent(this, wallet.send.SendActivity.class);
+        send.putExtra(wallet.send.SendActivity.EXTRA_RECIPIENT, address);
+        startActivity(send);
     }
 
     private void copyAddress() {
@@ -379,11 +416,7 @@ public class MainActivity extends BaseActivity
             showToastMessage(getString(R.string.no_transactions_to_export));
             return;
         }
-        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("text/csv");
-        intent.putExtra(Intent.EXTRA_TITLE, "bitcoin-transactions.csv");
-        startActivityForResult(intent, 9101);
+        transactionExportLauncher.launch("bitcoin-transactions.csv");
     }
 
     private void showAddressTools() {
@@ -424,7 +457,9 @@ public class MainActivity extends BaseActivity
             for (org.bitcoinj.script.Script script : wallet.getWatchedScripts()) {
                 try {
                     entries.add(new Entry(2, script.getToAddress(wallet.getParams()).toString()));
-                } catch (Exception ignored) { }
+                } catch (Exception ignored) {
+                    // Ignore an individual malformed watch script.
+                }
             }
 
             String selectedWatch = WalletSelection.getSelectedWatchAddress(this);
@@ -605,34 +640,6 @@ public class MainActivity extends BaseActivity
                 Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == 9101 && resultCode == RESULT_OK && data != null && data.getData() != null) {
-            exportTransactionsTo(data.getData());
-            return;
-        }
-
-        if (requestCode == ADDRESS_BOOK_REQUEST && resultCode == RESULT_OK && data != null) {
-            String selectedAddress = data.getStringExtra(
-                    wallet.contacts.AddressBookActivity.EXTRA_SELECTED_ADDRESS);
-            if (!TextUtils.isEmpty(selectedAddress)) {
-                Intent send = new Intent(this, wallet.send.SendActivity.class);
-                send.putExtra(wallet.send.SendActivity.EXTRA_RECIPIENT, selectedAddress);
-                startActivity(send);
-            }
-            return;
-        }
-
-        IntentResult result = IntentIntegrator.parseActivityResult(
-                requestCode, resultCode, data);
-        if (result != null && !TextUtils.isEmpty(result.getContents())) {
-            Intent send = new Intent(this, wallet.send.SendActivity.class);
-            send.putExtra(wallet.send.SendActivity.EXTRA_RECIPIENT, result.getContents());
-            startActivity(send);
-        }
-    }
 
     private void exportTransactionsTo(android.net.Uri destination) {
         new Thread(() -> {

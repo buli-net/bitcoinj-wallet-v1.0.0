@@ -365,8 +365,8 @@ public final class TransactionDetailActivity extends BaseActivity {
                     broadcast.broadcast();
                     try {
                         broadcast.awaitRelayed().get(15, java.util.concurrent.TimeUnit.SECONDS);
-                    } catch (java.util.concurrent.TimeoutException timeout) {
-                        android.util.Log.w("TransactionDetail", "RBF relay confirmation timed out", timeout);
+                    } catch (java.util.concurrent.TimeoutException ignored) {
+                        // Relay confirmation is advisory; the transaction was already broadcast.
                     } catch (InterruptedException interrupted) {
                         Thread.currentThread().interrupt();
                     }
@@ -911,7 +911,4 @@ public final class TransactionDetailActivity extends BaseActivity {
         }
     }
 
-    private int dp(int value) {
-        return Math.round(value * getResources().getDisplayMetrics().density);
-    }
 }

@@ -222,7 +222,7 @@ Use the application responsibly and keep independent backups of your wallet.</st
     <string name="transaction_limit_100">Show 100</string>
     <string name="transaction_limit_per_type">%1$d per type</string>
     <string name="fee_rate_initial">Fee rate: 5 sat/vB</string>
-    <string name="wallet_start_failed_detailed">Bitcoin wallet could not start. Check Logcat with tag %1$s for the cause.</string>
+    <string name="wallet_start_failed_detailed">Bitcoin wallet could not start. Please try again.</string>
     <string name="wallet_closing">Wallet is closing.</string>
     <string name="restore_network_mismatch">The wallet backup uses a different network from this application.</string>
     <string name="restore_stop_failed">Unable to stop the current wallet for restore.</string>

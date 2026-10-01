@@ -86,7 +86,9 @@ public final class ImportedWalletStore {
                     if (item != null && !item.trim().isEmpty()) result.add(item.trim());
                 }
             }
-        } catch (ClassCastException ignored) {}
+        } catch (ClassCastException ignored) {
+            // Older installations may store this preference under a different type.
+        }
         return new ArrayList<>(result);
     }
 

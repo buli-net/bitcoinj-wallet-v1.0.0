@@ -167,10 +167,8 @@ public class BitcoinSyncService extends Service {
                     getPackageName() + ":bitcoin-sync");
             syncWakeLock.setReferenceCounted(false);
             syncWakeLock.acquire();
-        } catch (Exception e) {
+        } catch (Exception ignored) {
             syncWakeLock = null;
-            android.util.Log.w("BitcoinSyncService",
-                    "Unable to acquire sync wake lock", e);
         }
     }
 

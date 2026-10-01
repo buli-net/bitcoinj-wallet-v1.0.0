@@ -1,7 +1,6 @@
 package wallet.send;
 
 import android.text.TextUtils;
-import android.util.Log;
 
 import org.bitcoinj.base.Address;
 import org.bitcoinj.base.Coin;
@@ -35,7 +34,6 @@ import wallet.main.R;
 /** Owns send validation, transaction preparation, review state, and broadcast state. */
 public final class SendPresenter {
 
-    private static final String TAG = "BitcoinSend";
     private static final long RBF_SEQUENCE = 0xfffffffdL;
 
     public static final int MIN_FEE_SAT_VB = 1;
@@ -238,7 +236,6 @@ public final class SendPresenter {
                 }
             } catch (Exception error) {
                 if (viewActive) {
-                    Log.e(TAG, "Maximum spend calculation failed", error);
                     view.showMessage(
                             view.getStringResource(
                                     R.string.max_amount_failed,
@@ -419,7 +416,7 @@ public final class SendPresenter {
             if (operation != operationId.get() || state != State.PREPARING) {
                 return;
             }
-            Log.e(TAG, "Send preparation failed", error);
+            
             clearPendingState();
             if (viewActive) {
                 view.showPreparing(false);
@@ -583,8 +580,8 @@ public final class SendPresenter {
                 try {
                     broadcast.awaitRelayed().get(15, TimeUnit.SECONDS);
                     relayed = true;
-                } catch (TimeoutException timeout) {
-                    Log.w(TAG, "Transaction relay confirmation timed out", timeout);
+                } catch (TimeoutException ignored) {
+                    // Relay confirmation is advisory; broadcast completion is already known.
                 } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
                 }
@@ -621,7 +618,6 @@ public final class SendPresenter {
                                 walletBalance(walletAppKit)));
             }
         } catch (Exception error) {
-            Log.e(TAG, "Broadcast failed", error);
             clearPendingState();
             if (viewActive) {
                 view.showSending(false);

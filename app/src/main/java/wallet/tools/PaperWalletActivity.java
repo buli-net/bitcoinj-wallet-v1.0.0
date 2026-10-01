@@ -2,8 +2,6 @@ package wallet.tools;
 
 import wallet.main.BaseActivity;
 
-import android.app.Activity;
-import android.content.Intent;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -23,8 +21,10 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.zxing.integration.android.IntentIntegrator;
-import com.google.zxing.integration.android.IntentResult;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import com.journeyapps.barcodescanner.ScanContract;
+import com.journeyapps.barcodescanner.ScanOptions;
 
 import org.bitcoinj.base.BitcoinNetwork;
 import org.bitcoinj.base.LegacyAddress;
@@ -47,7 +47,33 @@ import wallet.qr.QrCodeGenerator;
 /** Creates an offline-style single-key paper wallet with QR codes. */
 public final class PaperWalletActivity extends BaseActivity {
 
-    private static final int FILE_REQUEST = 4107;
+    private final ActivityResultLauncher<ScanOptions> barcodeLauncher =
+            registerForActivityResult(new ScanContract(), result -> {
+                if (!TextUtils.isEmpty(result.getContents())) {
+                    String value = result.getContents().trim();
+                    if (value.startsWith("6P")) {
+                        promptForImportedBip38(value);
+                    } else {
+                        importInput.setText(value);
+                        importInput.setSelection(importInput.length());
+                    }
+                }
+            });
+
+    private final ActivityResultLauncher<String> inputFileLauncher =
+            registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+                if (uri != null) {
+                    readInputFile(uri);
+                }
+            });
+
+    private final ActivityResultLauncher<String> exportFileLauncher =
+            registerForActivityResult(new ActivityResultContracts.CreateDocument("text/plain"), uri -> {
+                if (uri != null) {
+                    writeExport(uri);
+                }
+            });
+
     private final SecureRandom secureRandom = new SecureRandom();
     private EditText importInput;
     private CheckBox bip38CheckBox;
@@ -71,7 +97,6 @@ public final class PaperWalletActivity extends BaseActivity {
     private String currentPrivateText;
     private boolean addressVisible = true;
     private boolean privateVisible = false;
-    private static final int EXPORT_REQUEST = 4108;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -105,9 +130,11 @@ public final class PaperWalletActivity extends BaseActivity {
 
         generateButton.setOnClickListener(v -> createRandomWallet());
         importButton.setOnClickListener(v -> importWalletKey());
-        findViewById(R.id.paperWalletScanButton).setOnClickListener(v -> new IntentIntegrator(this)
-                .setPrompt(getString(R.string.paper_wallet_scan_prompt))
-                .initiateScan());
+        findViewById(R.id.paperWalletScanButton).setOnClickListener(v -> {
+            ScanOptions options = new ScanOptions()
+                    .setPrompt(getString(R.string.paper_wallet_scan_prompt));
+            barcodeLauncher.launch(options);
+        });
         findViewById(R.id.paperWalletFileButton).setOnClickListener(v -> openInputFile());
         findViewById(R.id.paperWalletClearButton).setOnClickListener(v -> clearResult());
         addressCopyButton.setOnClickListener(v -> copyToClipboard(getString(R.string.paper_wallet_address_label), currentAddress));
@@ -332,11 +359,7 @@ public final class PaperWalletActivity extends BaseActivity {
 
     private void exportText() {
         if (TextUtils.isEmpty(currentAddress) || TextUtils.isEmpty(currentPrivateText)) return;
-        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("text/plain");
-        intent.putExtra(Intent.EXTRA_TITLE, "bitcoin-paper-wallet.txt");
-        startActivityForResult(intent, EXPORT_REQUEST);
+        exportFileLauncher.launch("bitcoin-paper-wallet.txt");
     }
 
     private void writeExport(Uri uri) {
@@ -357,33 +380,7 @@ public final class PaperWalletActivity extends BaseActivity {
     }
 
     private void openInputFile() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("*/*");
-        startActivityForResult(intent, FILE_REQUEST);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        IntentResult scan = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
-        if (scan != null) {
-            if (!TextUtils.isEmpty(scan.getContents())) {
-                String value = scan.getContents().trim();
-                if (value.startsWith("6P")) {
-                    promptForImportedBip38(value);
-                } else {
-                    importInput.setText(value);
-                    importInput.setSelection(importInput.length());
-                }
-            }
-            return;
-        }
-        if (requestCode == FILE_REQUEST && resultCode == Activity.RESULT_OK && data != null && data.getData() != null) {
-            readInputFile(data.getData());
-        } else if (requestCode == EXPORT_REQUEST && resultCode == Activity.RESULT_OK && data != null && data.getData() != null) {
-            writeExport(data.getData());
-        }
+        inputFileLauncher.launch(new String[]{"*/*"});
     }
 
     private void promptForImportedBip38(String encrypted) {

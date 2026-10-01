@@ -257,7 +257,9 @@ final class PaperWalletPrintAdapter extends android.print.PrintDocumentAdapter {
             if (value.resourceId != 0) {
                 try {
                     return context.getResources().getColor(value.resourceId);
-                } catch (Exception ignored) { }
+                } catch (Exception ignored) {
+                    // Ignore an individual malformed watch script.
+                }
             }
             return value.data;
         }

@@ -4,8 +4,9 @@ package wallet.backup;
 
 import wallet.main.BaseActivity;
 
-import android.content.Intent;
 import android.net.Uri;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import android.os.Bundle;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.Toolbar;
@@ -18,7 +19,13 @@ import wallet.main.R;
 
 public class RestoreActivity extends BaseActivity {
 
-    private static final int REQUEST_OPEN_BACKUP = 8201;
+    private final ActivityResultLauncher<String[]> backupFileLauncher =
+            registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+                if (uri != null) {
+                    confirmRestore(uri);
+                }
+            });
+
 
     @Override
     protected void onCreate(Bundle state) {
@@ -46,24 +53,7 @@ public class RestoreActivity extends BaseActivity {
     }
 
     private void chooseBackup() {
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("application/octet-stream");
-        startActivityForResult(intent, REQUEST_OPEN_BACKUP);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode != REQUEST_OPEN_BACKUP
-                || resultCode != RESULT_OK
-                || data == null
-                || data.getData() == null) {
-            return;
-        }
-
-        confirmRestore(data.getData());
+        backupFileLauncher.launch(new String[]{"application/octet-stream", "application/zip", "*/*"});
     }
 
     private void restoreFromMnemonic(

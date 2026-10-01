@@ -19,9 +19,9 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.content.Intent;
-import com.google.zxing.integration.android.IntentIntegrator;
-import com.google.zxing.integration.android.IntentResult;
+import androidx.activity.result.ActivityResultLauncher;
+import com.journeyapps.barcodescanner.ScanContract;
+import com.journeyapps.barcodescanner.ScanOptions;
 import org.bitcoinj.base.Address;
 import org.bitcoinj.core.TransactionOutput;
 import org.bitcoinj.script.Script;
@@ -37,6 +37,14 @@ import java.util.Map;
 import java.util.Set;
 
 public final class WatchOnlyWalletActivity extends BaseActivity {
+    private final ActivityResultLauncher<ScanOptions> barcodeLauncher =
+            registerForActivityResult(new ScanContract(), result -> {
+                if (!TextUtils.isEmpty(result.getContents())) {
+                    EditText input = findViewById(R.id.watchAddressInput);
+                    input.setText(result.getContents().trim());
+                    input.setSelection(input.length());
+                }
+            });
     private EditText watchAddressInput;
     private EditText watchDateInput;
     private Button addWatchAddressButton;
@@ -95,20 +103,12 @@ public final class WatchOnlyWalletActivity extends BaseActivity {
         watchAddressInput=findViewById(R.id.watchAddressInput); watchDateInput=findViewById(R.id.watchDateInput); addWatchAddressButton=findViewById(R.id.addWatchAddressButton); rescanWatchedButton=findViewById(R.id.rescanWatchedButton); deleteWatchedButton=findViewById(R.id.deleteWatchedButton); watchedBalanceSummary=findViewById(R.id.watchedBalanceSummary); watchedAddressList=findViewById(R.id.watchedAddressList); watchedAddressEmpty=findViewById(R.id.watchedAddressEmpty);
         Button scanWatchAddressQrButton = findViewById(R.id.scanWatchAddressQrButton);
         addWatchAddressButton.setOnClickListener(v->addWatchAddress());
-        scanWatchAddressQrButton.setOnClickListener(v -> new IntentIntegrator(this)
-                .setPrompt(getString(R.string.scan_watch_address_qr))
-                .initiateScan());
+        scanWatchAddressQrButton.setOnClickListener(v -> {
+            ScanOptions options = new ScanOptions()
+                    .setPrompt(getString(R.string.scan_watch_address_qr));
+            barcodeLauncher.launch(options);
+        });
         rescanWatchedButton.setOnClickListener(v->rescanWatchedAddresses()); deleteWatchedButton.setOnClickListener(v->deleteSelectedWatchedAddresses()); attachWalletListener(); refreshWatchedAddresses();
-    }
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
-        if (result != null && !TextUtils.isEmpty(result.getContents())) {
-            EditText input = findViewById(R.id.watchAddressInput);
-            input.setText(result.getContents().trim());
-            input.setSelection(input.length());
-        }
     }
 
     @Override protected void onResume(){

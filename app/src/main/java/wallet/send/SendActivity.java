@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import androidx.appcompat.app.AlertDialog;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.appcompat.widget.Toolbar;
 import android.text.Editable;
@@ -22,8 +24,8 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.zxing.integration.android.IntentIntegrator;
-import com.google.zxing.integration.android.IntentResult;
+import com.journeyapps.barcodescanner.ScanContract;
+import com.journeyapps.barcodescanner.ScanOptions;
 
 import org.bitcoinj.base.Coin;
 import org.bitcoinj.kits.WalletAppKit;
@@ -42,6 +44,26 @@ import wallet.tools.CoinControlActivity;
 /** Bitcoin send screen. */
 
 public class SendActivity extends BaseActivity implements SendPresenter.View {
+
+    private final ActivityResultLauncher<Intent> addressBookLauncher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    String selectedAddress = result.getData().getStringExtra(
+                            AddressBookActivity.EXTRA_SELECTED_ADDRESS);
+                    if (!TextUtils.isEmpty(selectedAddress)) {
+                        recipient.setText(selectedAddress);
+                        recipient.selectAll();
+                    }
+                }
+            });
+
+    private final ActivityResultLauncher<ScanOptions> barcodeLauncher =
+            registerForActivityResult(new ScanContract(), result -> {
+                if (!TextUtils.isEmpty(result.getContents())) {
+                    recipient.setText(result.getContents());
+                    recipient.selectAll();
+                }
+            });
 
     public static final String EXTRA_RECIPIENT = "recipient";
 
@@ -93,7 +115,6 @@ public class SendActivity extends BaseActivity implements SendPresenter.View {
     private SendPresenter presenter;
     private boolean updatingAmount;
     private final Runnable walletUpdateCallback = this::onWalletUpdated;
-    private static final int ADDRESS_BOOK_REQUEST = 4101;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -440,12 +461,14 @@ public class SendActivity extends BaseActivity implements SendPresenter.View {
         });
 
         Button addressBook = findViewById(R.id.addressBookButton);
-        addressBook.setOnClickListener(v -> startActivityForResult(
-                new Intent(this, AddressBookActivity.class), ADDRESS_BOOK_REQUEST));
+        addressBook.setOnClickListener(v -> addressBookLauncher.launch(
+                new Intent(this, AddressBookActivity.class)));
 
-        scan.setOnClickListener(v -> new IntentIntegrator(this)
-                .setPrompt(getString(R.string.scan_recipient_address))
-                .initiateScan());
+        scan.setOnClickListener(v -> {
+            ScanOptions options = new ScanOptions()
+                    .setPrompt(getString(R.string.scan_recipient_address));
+            barcodeLauncher.launch(options);
+        });
 
         max.setOnClickListener(v -> presenter.fillMax());
         coinControl.setOnClickListener(v -> startActivity(new Intent(this, CoinControlActivity.class)));
@@ -886,24 +909,6 @@ public class SendActivity extends BaseActivity implements SendPresenter.View {
         runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_LONG).show());
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == ADDRESS_BOOK_REQUEST && resultCode == RESULT_OK && data != null) {
-            String selectedAddress = data.getStringExtra(AddressBookActivity.EXTRA_SELECTED_ADDRESS);
-            if (!TextUtils.isEmpty(selectedAddress)) {
-                recipient.setText(selectedAddress);
-                recipient.selectAll();
-            }
-            return;
-        }
-
-        IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
-        if (result != null && !TextUtils.isEmpty(result.getContents())) {
-            recipient.setText(result.getContents());
-            recipient.selectAll();
-        }
-    }
 
     @Override
     protected void onDestroy() {

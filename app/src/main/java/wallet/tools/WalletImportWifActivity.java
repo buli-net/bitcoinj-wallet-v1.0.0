@@ -21,9 +21,9 @@ import android.view.View;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.content.Intent;
-import com.google.zxing.integration.android.IntentIntegrator;
-import com.google.zxing.integration.android.IntentResult;
+import androidx.activity.result.ActivityResultLauncher;
+import com.journeyapps.barcodescanner.ScanContract;
+import com.journeyapps.barcodescanner.ScanOptions;
 import androidx.appcompat.app.AlertDialog;
 import org.bitcoinj.base.BitcoinNetwork;
 import org.bitcoinj.base.LegacyAddress;
@@ -38,6 +38,14 @@ import wallet.Constants;
 import wallet.security.WalletSecurity;
 
 public final class WalletImportWifActivity extends BaseActivity {
+    private final ActivityResultLauncher<ScanOptions> barcodeLauncher =
+            registerForActivityResult(new ScanContract(), result -> {
+                if (!TextUtils.isEmpty(result.getContents())) {
+                    EditText input = findViewById(R.id.privateKeyInput);
+                    input.setText(result.getContents().trim());
+                    input.setSelection(input.length());
+                }
+            });
 
     private Wallet getWallet() {
         WalletAppKit kit = MainActivityPresenter.getActiveWalletAppKit();
@@ -47,8 +55,6 @@ public final class WalletImportWifActivity extends BaseActivity {
     private NetworkParameters getParameters() {
         return MainActivityPresenter.getActiveParameters();
     }
-    private final Runnable walletUpdateCallback = this::onWalletUpdated;
-    private int renderRetries;
     private void show(int messageId) {
         Toast.makeText(this, messageId, Toast.LENGTH_LONG).show();
     }
@@ -61,49 +67,19 @@ public final class WalletImportWifActivity extends BaseActivity {
         Button scanWifQrButton = findViewById(R.id.scanWifQrButton);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
         importButton.setOnClickListener(v -> importPrivateKey(input, importButton));
-        scanWifQrButton.setOnClickListener(v -> new IntentIntegrator(this)
-                .setPrompt(getString(R.string.scan_wif_qr))
-                .initiateScan());
+        scanWifQrButton.setOnClickListener(v -> {
+            ScanOptions options = new ScanOptions()
+                    .setPrompt(getString(R.string.scan_wif_qr));
+            barcodeLauncher.launch(options);
+        });
         findViewById(R.id.wifInfoButton).setOnClickListener(v -> showWifInfo());
 
-        renderRetries = 0;
         renderImportedWallets();
-        scheduleWalletListRetry();
     }
 
     @Override protected void onResume() {
         super.onResume();
-        renderRetries = 0;
         renderImportedWallets();
-        scheduleWalletListRetry();
-    }
-
-    private void scheduleWalletListRetry() {
-        // The imported-wallet list is deliberately registry-only, like Watch-only.
-        // Never poll WalletAppKit here: startup/sync must not block this screen.
-    }
-
-    private void onWalletUpdated() {
-        // Wallet updates must never trigger bitcoinj key/UTXO scans on this screen.
-        // The persistent ImportedWalletStore is the source for the list UI.
-        runOnUiThread(() -> {
-            if (!isFinishing()) renderImportedWallets();
-        });
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
-        if (result != null && !TextUtils.isEmpty(result.getContents())) {
-            EditText input = findViewById(R.id.privateKeyInput);
-            input.setText(result.getContents().trim());
-            input.setSelection(input.length());
-        }
-    }
-
-    @Override protected void onDestroy() {
-        super.onDestroy();
     }
 
     private void importPrivateKey(EditText privateKeyInput, Button importPrivateKeyButton) {

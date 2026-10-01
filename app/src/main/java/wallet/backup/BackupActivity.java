@@ -7,8 +7,9 @@ import wallet.main.BaseActivity;
 import android.view.View;
 import android.content.ClipData;
 import android.content.ClipboardManager;
-import android.content.Intent;
 import android.net.Uri;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import android.os.Bundle;
 import androidx.appcompat.widget.Toolbar;
 import androidx.appcompat.app.AlertDialog;
@@ -37,7 +38,13 @@ import wallet.security.WalletSecurity;
 
 public class BackupActivity extends BaseActivity {
 
-    private static final int REQUEST_CREATE_BACKUP = 8101;
+    private final ActivityResultLauncher<String> backupFileLauncher =
+            registerForActivityResult(new ActivityResultContracts.CreateDocument("application/octet-stream"), uri -> {
+                if (uri != null) {
+                    copyBackup(uri);
+                }
+            });
+
 
     @Override
     protected void onCreate(Bundle state) {
@@ -94,25 +101,8 @@ public class BackupActivity extends BaseActivity {
     }
 
     private void openCreateDocument() {
-        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("application/octet-stream");
-        intent.putExtra(
-                Intent.EXTRA_TITLE,
+        backupFileLauncher.launch(
                 getString(R.string.backup_title_file, Constants.WALLET_NAME));
-        startActivityForResult(intent, REQUEST_CREATE_BACKUP);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == REQUEST_CREATE_BACKUP
-                && resultCode == RESULT_OK
-                && data != null
-                && data.getData() != null) {
-            copyBackup(data.getData());
-        }
     }
 
     private void copyBackup(Uri destination) {
