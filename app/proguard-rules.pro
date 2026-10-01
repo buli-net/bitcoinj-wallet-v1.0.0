@@ -1,5 +1,4 @@
 -dontskipnonpubliclibraryclasses
-
 -dontpreverify
 -dontobfuscate
 -verbose
