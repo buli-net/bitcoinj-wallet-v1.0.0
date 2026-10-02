@@ -220,39 +220,70 @@ public final class TextViewUtils {
     }
 
     private static int[] findVisibleRange(Paint paint, String text, float available) {
-        float prefixWidth = 0f;
-        float suffixWidth = 0f;
-        int prefix = 0;
-        int suffix = text.length();
+        int length = text.length();
+        if (length < 3) {
+            return new int[]{0, length};
+        }
 
-        while (prefix < suffix) {
-            float nextPrefix = paint.measureText(text, prefix, prefix + 1);
-            float nextSuffix = paint.measureText(text, suffix - 1, suffix);
+        int bestPrefix = 1;
+        int bestSuffix = 1;
+        int bestVisible = 2;
+        float bestUsed = 0f;
+        int bestBalance = Integer.MAX_VALUE;
 
-            if (prefixWidth <= suffixWidth) {
-                if (prefixWidth + nextPrefix + suffixWidth <= available) {
-                    prefixWidth += nextPrefix;
-                    prefix++;
-                } else if (prefixWidth + suffixWidth + nextSuffix <= available) {
-                    suffixWidth += nextSuffix;
-                    suffix--;
-                } else {
-                    break;
+        // Find the largest suffix that still fits for each possible prefix.
+        // This guarantees that a long identifier never loses its entire
+        // suffix just because the prefix happened to consume the remaining
+        // width first.
+        for (int prefix = 1; prefix < length - 1; prefix++) {
+            float prefixWidth = paint.measureText(text, 0, prefix);
+            if (prefixWidth >= available) {
+                break;
+            }
+
+            int maxSuffix = length - prefix;
+            int low = 1;
+            int high = maxSuffix;
+            int fittingSuffix = 0;
+
+            while (low <= high) {
+                int middle = (low + high) >>> 1;
+                int suffixStart = length - middle;
+                if (suffixStart <= prefix) {
+                    high = middle - 1;
+                    continue;
                 }
-            } else {
-                if (prefixWidth + suffixWidth + nextSuffix <= available) {
-                    suffixWidth += nextSuffix;
-                    suffix--;
-                } else if (prefixWidth + nextPrefix + suffixWidth <= available) {
-                    prefixWidth += nextPrefix;
-                    prefix++;
+
+                float suffixWidth = paint.measureText(text, suffixStart, length);
+                if (prefixWidth + suffixWidth <= available) {
+                    fittingSuffix = middle;
+                    low = middle + 1;
                 } else {
-                    break;
+                    high = middle - 1;
                 }
+            }
+
+            if (fittingSuffix < 1) {
+                continue;
+            }
+
+            int visible = prefix + fittingSuffix;
+            float used = prefixWidth + paint.measureText(
+                    text, length - fittingSuffix, length);
+            int balance = Math.abs(prefix - fittingSuffix);
+
+            if (visible > bestVisible
+                    || (visible == bestVisible && balance < bestBalance)
+                    || (visible == bestVisible && balance == bestBalance && used > bestUsed)) {
+                bestPrefix = prefix;
+                bestSuffix = fittingSuffix;
+                bestVisible = visible;
+                bestUsed = used;
+                bestBalance = balance;
             }
         }
 
-        return new int[]{prefix, suffix};
+        return new int[]{bestPrefix, length - bestSuffix};
     }
 
     private static final class State {
