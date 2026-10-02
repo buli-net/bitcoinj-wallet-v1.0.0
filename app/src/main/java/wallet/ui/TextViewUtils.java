@@ -221,65 +221,44 @@ public final class TextViewUtils {
 
     private static int[] findVisibleRange(Paint paint, String text, float available) {
         int length = text.length();
-        if (length < 3) {
+        if (length <= 8) {
             return new int[]{0, length};
         }
 
-        int bestPrefix = 1;
-        int bestSuffix = 1;
-        int bestVisible = 2;
+        int minSide = Math.min(4, (length - 1) / 2);
+        int bestPrefix = minSide;
+        int bestSuffix = minSide;
         float bestUsed = 0f;
-        int bestBalance = Integer.MAX_VALUE;
+        int bestVisible = 0;
+        float bestBalance = Float.MAX_VALUE;
 
-        // Find the largest suffix that still fits for each possible prefix.
-        // This guarantees that a long identifier never loses its entire
-        // suffix just because the prefix happened to consume the remaining
-        // width first.
-        for (int prefix = 1; prefix < length - 1; prefix++) {
+        // Keep both ends visible. These identifiers are short enough that a
+        // small exhaustive search is inexpensive and lets the actual glyph
+        // widths, rather than character count, determine the split.
+        for (int prefix = minSide; prefix < length - minSide; prefix++) {
             float prefixWidth = paint.measureText(text, 0, prefix);
             if (prefixWidth >= available) {
                 break;
             }
 
-            int maxSuffix = length - prefix;
-            int low = 1;
-            int high = maxSuffix;
-            int fittingSuffix = 0;
-
-            while (low <= high) {
-                int middle = (low + high) >>> 1;
-                int suffixStart = length - middle;
-                if (suffixStart <= prefix) {
-                    high = middle - 1;
-                    continue;
+            for (int suffix = minSide; suffix <= length - prefix - 1; suffix++) {
+                float suffixWidth = paint.measureText(text, length - suffix, length);
+                float used = prefixWidth + suffixWidth;
+                if (used > available) {
+                    break;
                 }
 
-                float suffixWidth = paint.measureText(text, suffixStart, length);
-                if (prefixWidth + suffixWidth <= available) {
-                    fittingSuffix = middle;
-                    low = middle + 1;
-                } else {
-                    high = middle - 1;
+                int visible = prefix + suffix;
+                float balance = Math.abs(prefixWidth - suffixWidth);
+                if (visible > bestVisible
+                        || (visible == bestVisible && balance < bestBalance)
+                        || (visible == bestVisible && balance == bestBalance && used > bestUsed)) {
+                    bestPrefix = prefix;
+                    bestSuffix = suffix;
+                    bestVisible = visible;
+                    bestBalance = balance;
+                    bestUsed = used;
                 }
-            }
-
-            if (fittingSuffix < 1) {
-                continue;
-            }
-
-            int visible = prefix + fittingSuffix;
-            float used = prefixWidth + paint.measureText(
-                    text, length - fittingSuffix, length);
-            int balance = Math.abs(prefix - fittingSuffix);
-
-            if (visible > bestVisible
-                    || (visible == bestVisible && balance < bestBalance)
-                    || (visible == bestVisible && balance == bestBalance && used > bestUsed)) {
-                bestPrefix = prefix;
-                bestSuffix = fittingSuffix;
-                bestVisible = visible;
-                bestUsed = used;
-                bestBalance = balance;
             }
         }
 
