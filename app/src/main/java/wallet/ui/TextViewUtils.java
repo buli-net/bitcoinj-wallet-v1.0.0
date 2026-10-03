@@ -1,8 +1,5 @@
 package wallet.ui;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.Context;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,26 +28,12 @@ public final class TextViewUtils {
         view.setSingleLine(true);
         view.setMaxLines(1);
         view.setHorizontallyScrolling(false);
-        // Native middle ellipsis and selectable TextView do not work reliably together
-        // on all Android versions. Keep the view non-selectable for stable rendering,
-        // but preserve the expected copy action by copying the complete underlying
-        // value on long press.
-        view.setTextIsSelectable(false);
+        // Keep Android's native text-selection behavior: long press selects text
+        // and shows the standard selection menu/handles. The complete underlying
+        // value remains selectable even when the TextView visually ellipsizes it.
+        view.setTextIsSelectable(true);
         view.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         view.setTransformationMethod(null);
-        view.setOnLongClickListener(v -> {
-            CharSequence value = view.getText();
-            if (value == null || value.length() == 0) {
-                return false;
-            }
-            ClipboardManager clipboard =
-                    (ClipboardManager) view.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
-            if (clipboard == null) {
-                return false;
-            }
-            clipboard.setPrimaryClip(ClipData.newPlainText("B-Lite", value.toString()));
-            return true;
-        });
     }
 
     /**
