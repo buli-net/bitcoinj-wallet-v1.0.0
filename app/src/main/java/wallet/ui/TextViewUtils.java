@@ -221,14 +221,6 @@ public final class TextViewUtils {
         return spanned.getSpans(0, spanned.length(), EllipsisSpan.class).length > 0;
     }
 
-    private static EllipsisSpan[] getEllipsisSpans(CharSequence text) {
-        if (!(text instanceof Spanned)) {
-            return new EllipsisSpan[0];
-        }
-        Spanned spanned = (Spanned) text;
-        return spanned.getSpans(0, spanned.length(), EllipsisSpan.class);
-    }
-
     /**
      * Coalesces repeated data/layout notifications into one ellipsis render per
      * UI frame. This keeps rapidly updating sync values live without repeatedly
@@ -266,126 +258,83 @@ public final class TextViewUtils {
         state.applying = true;
         try {
             state.sourceText = raw;
+            state.lastText = raw;
+            state.lastWidth = width;
 
-            boolean hasCurrentEllipsis = hasEllipsisSpan(view.getText());
+            TextViewUtils.removeEllipsisSpans(view.getText());
 
             if (view.getPaint().measureText(raw) <= width) {
-                // A previous layout pass may have created an ellipsis span while the
-                // RecyclerView holder was still narrower. Once the real width is
-                // available, restore the complete raw value instead of leaving that
-                // stale span in place. This is the root cause of cases where an
-                // address such as a normal 34-character Base58 address lost its
-                // suffix even though the row had enough room.
-                state.lastText = raw;
-                state.lastWidth = width;
-                if (hasCurrentEllipsis) {
-                    view.setText(raw, TextView.BufferType.SPANNABLE);
+                if (!(view.getText() instanceof Spanned)
+                        || view.getText().toString().equals(raw)) {
+                    // The text is already complete and fits; do not replace it.
+                    return;
                 }
+                view.setText(raw, TextView.BufferType.SPANNABLE);
                 return;
             }
 
             float ellipsisWidth = view.getPaint().measureText("…");
             if (ellipsisWidth >= width) {
-                state.lastText = raw;
-                state.lastWidth = width;
-                if (hasCurrentEllipsis) {
-                    view.setText(raw, TextView.BufferType.SPANNABLE);
-                }
                 return;
             }
 
             int[] range = findVisibleRange(view.getPaint(), raw, width - ellipsisWidth);
             if (range[0] == 0 && range[1] == raw.length()) {
-                state.lastText = raw;
-                state.lastWidth = width;
-                if (hasCurrentEllipsis) {
-                    view.setText(raw, TextView.BufferType.SPANNABLE);
-                }
                 return;
-            }
-
-            EllipsisSpan[] currentSpans = getEllipsisSpans(view.getText());
-            if (currentSpans.length == 1) {
-                // Compare the actual span range rather than only the raw string.
-                // The same source text can legitimately need a different display
-                // range after a RecyclerView/layout width change.
-                Spanned current = (Spanned) view.getText();
-                int spanStart = current.getSpanStart(currentSpans[0]);
-                int spanEnd = current.getSpanEnd(currentSpans[0]);
-                if (spanStart == range[0] && spanEnd == range[1]) {
-                    state.lastText = raw;
-                    state.lastWidth = width;
-                    return;
-                }
             }
 
             SpannableString display = new SpannableString(raw);
             display.setSpan(new EllipsisSpan(ellipsisWidth), range[0], range[1],
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            state.lastText = raw;
-            state.lastWidth = width;
             view.setText(display, TextView.BufferType.SPANNABLE);
         } finally {
             state.applying = false;
         }
     }
 
+    private static void removeEllipsisSpans(CharSequence text) {
+        if (!(text instanceof Spanned)) return;
+        Spanned spanned = (Spanned) text;
+        EllipsisSpan[] spans = spanned.getSpans(0, spanned.length(), EllipsisSpan.class);
+        if (spans.length == 0) return;
+        // The current TextView text is replaced with the raw string on the next
+        // apply() pass. No mutation of the caller's CharSequence is needed here.
+    }
+
     private static int[] findVisibleRange(Paint paint, String text, float available) {
-        // Choose the longest visible prefix+suffix pair that fits, then prefer
-        // the most balanced pair. The previous greedy walk could consume the
-        // whole width with the prefix and leave no suffix at all for some
-        // addresses, producing results such as "3AtmPRCET5G..." while other
-        // addresses of the same length displayed correctly on both sides.
-        int length = text.length();
-        if (length <= 1 || available <= 0f) {
-            return new int[]{0, length};
-        }
+        float prefixWidth = 0f;
+        float suffixWidth = 0f;
+        int prefix = 0;
+        int suffix = text.length();
 
-        float[] prefixWidths = new float[length + 1];
-        float[] suffixWidths = new float[length + 1];
-        for (int i = 0; i < length; i++) {
-            prefixWidths[i + 1] = prefixWidths[i]
-                    + paint.measureText(text, i, i + 1);
-            suffixWidths[i + 1] = suffixWidths[i]
-                    + paint.measureText(text, length - i - 1, length - i);
-        }
+        while (prefix < suffix) {
+            float nextPrefix = paint.measureText(text, prefix, prefix + 1);
+            float nextSuffix = paint.measureText(text, suffix - 1, suffix);
 
-        int bestPrefix = 0;
-        int bestSuffix = 0;
-        int bestVisible = -1;
-        float bestImbalance = Float.MAX_VALUE;
-
-        for (int prefix = 0; prefix < length; prefix++) {
-            for (int suffix = 0; suffix < length - prefix; suffix++) {
-                if (prefix == 0 && suffix == 0) {
-                    continue;
+            if (prefixWidth <= suffixWidth) {
+                if (prefixWidth + nextPrefix + suffixWidth <= available) {
+                    prefixWidth += nextPrefix;
+                    prefix++;
+                } else if (prefixWidth + suffixWidth + nextSuffix <= available) {
+                    suffixWidth += nextSuffix;
+                    suffix--;
+                } else {
+                    break;
                 }
-
-                float totalWidth = prefixWidths[prefix] + suffixWidths[suffix];
-                if (totalWidth > available) {
-                    continue;
-                }
-
-                int visible = prefix + suffix;
-                float imbalance = Math.abs(prefixWidths[prefix] - suffixWidths[suffix]);
-
-                if (visible > bestVisible
-                        || (visible == bestVisible && imbalance < bestImbalance)
-                        || (visible == bestVisible && imbalance == bestImbalance
-                        && prefix > bestPrefix)) {
-                    bestVisible = visible;
-                    bestPrefix = prefix;
-                    bestSuffix = suffix;
-                    bestImbalance = imbalance;
+            } else {
+                if (prefixWidth + suffixWidth + nextSuffix <= available) {
+                    suffixWidth += nextSuffix;
+                    suffix--;
+                } else if (prefixWidth + nextPrefix + suffixWidth <= available) {
+                    prefixWidth += nextPrefix;
+                    prefix++;
+                } else {
+                    break;
                 }
             }
         }
 
-        if (bestVisible <= 0 || bestPrefix + bestSuffix >= length) {
-            return new int[]{0, length};
-        }
-
-        return new int[]{bestPrefix, length - bestSuffix};
+        return new int[]{prefix, suffix};
     }
 
     private static final class State {
