@@ -15,7 +15,6 @@ import android.widget.TextView;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
-import wallet.ui.TextViewUtils;
 
 /** Live blockchain and BitcoinJ synchronization monitor. */
 public class SyncActivity extends BaseActivity {
@@ -105,7 +104,6 @@ public class SyncActivity extends BaseActivity {
         bestChain = findViewById(R.id.syncBestChain);
         blocksBehind = findViewById(R.id.syncBlocksBehind);
         chainHash = findViewById(R.id.syncChainHash);
-        TextViewUtils.configureSelectableMiddleEllipsis(chainHash);
         lastBlockTime = findViewById(R.id.syncLastBlockTime);
         syncRate = findViewById(R.id.syncRate);
         syncTargetInline = findViewById(R.id.syncTargetInline);
@@ -120,7 +118,6 @@ public class SyncActivity extends BaseActivity {
         networkCapabilities = findViewById(R.id.syncNetworkCapabilities);
         chainTechnical = findViewById(R.id.syncChainTechnical);
         merkleRoot = findViewById(R.id.syncMerkleRoot);
-        TextViewUtils.configureSelectableMiddleEllipsis(merkleRoot);
         walletChainState = findViewById(R.id.syncWalletChainState);
         refresh = findViewById(R.id.syncRefreshButton);
         reconnect = findViewById(R.id.syncReconnectButton);
